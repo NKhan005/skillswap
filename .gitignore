@@ -30,3 +30,6 @@ mongo-data/
 
 # dev-mongo persistent data
 server/.devdata/
+
+# local CI stack secrets
+.env.ci

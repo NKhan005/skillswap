@@ -1,0 +1,91 @@
+# Local CI stack: Jenkins + SonarQube, the two halves of Gowthami's pipeline
+# that normally need servers. Running them as containers means the whole
+# pipeline can be exercised on one laptop with no cloud accounts.
+#
+#   docker compose -f docker-compose.ci.yml up -d --build
+#
+#   Jenkins   http://localhost:8081   (admin / the password in .env.ci)
+#   SonarQube http://localhost:9000   (admin / admin, forces a change on first login)
+#
+# This is a development harness, not a production CI install: everything sits
+# on localhost, and Jenkins is given the host Docker socket so it can build
+# images. Anyone who can reach Jenkins can therefore reach Docker, which is
+# why nothing here is exposed beyond 127.0.0.1.
+
+name: skillswap-ci
+
+services:
+  jenkins:
+    build:
+      context: ./ci/jenkins
+      dockerfile: Dockerfile
+    container_name: skillswap-jenkins
+    restart: unless-stopped
+    environment:
+      # Seeds the initial admin user so the setup wizard can stay off.
+      JENKINS_ADMIN_ID: ${JENKINS_ADMIN_ID:-admin}
+      JENKINS_ADMIN_PASSWORD: ${JENKINS_ADMIN_PASSWORD:-changeme}
+    ports:
+      - '127.0.0.1:8081:8080' # 8080 is taken by the app's client container
+      - '127.0.0.1:50000:50000' # inbound agents
+    volumes:
+      - jenkins-home:/var/jenkins_home
+      # Lets Jenkins build images with the host daemon. On Windows and macOS
+      # Docker Desktop exposes the socket at this same path.
+      - /var/run/docker.sock:/var/run/docker.sock
+    networks: [ci]
+
+  sonarqube:
+    image: sonarqube:lts-community
+    container_name: skillswap-sonarqube
+    restart: unless-stopped
+    depends_on:
+      sonar-db:
+        condition: service_healthy
+    environment:
+      SONAR_JDBC_URL: jdbc:postgresql://sonar-db:5432/sonar
+      SONAR_JDBC_USERNAME: sonar
+      SONAR_JDBC_PASSWORD: ${SONAR_DB_PASSWORD:-sonar}
+      # Docker Desktop cannot raise vm.max_map_count, so the embedded
+      # Elasticsearch bootstrap check has to be skipped locally.
+      SONAR_ES_BOOTSTRAP_CHECKS_DISABLE: 'true'
+    ports:
+      - '127.0.0.1:9000:9000'
+    volumes:
+      - sonarqube-data:/opt/sonarqube/data
+      - sonarqube-extensions:/opt/sonarqube/extensions
+      - sonarqube-logs:/opt/sonarqube/logs
+    # SonarQube's Elasticsearch needs a raised mmap count and file limits.
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    networks: [ci]
+
+  sonar-db:
+    image: postgres:16-alpine
+    container_name: skillswap-sonar-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sonar
+      POSTGRES_PASSWORD: ${SONAR_DB_PASSWORD:-sonar}
+      POSTGRES_DB: sonar
+    volumes:
+      - sonar-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U sonar']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    networks: [ci]
+
+volumes:
+  jenkins-home:
+  sonarqube-data:
+  sonarqube-extensions:
+  sonarqube-logs:
+  sonar-db-data:
+
+networks:
+  ci:
+    driver: bridge

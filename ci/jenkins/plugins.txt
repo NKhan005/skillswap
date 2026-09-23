@@ -1,0 +1,15 @@
+# Plugins the SkillSwap Jenkinsfile needs.
+workflow-aggregator
+git
+github
+github-branch-source
+pipeline-stage-view
+docker-workflow
+sonar
+nodejs
+credentials-binding
+ansicolor
+timestamps
+ws-cleanup
+htmlpublisher
+pipeline-utility-steps
