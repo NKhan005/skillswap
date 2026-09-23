@@ -1,0 +1,194 @@
+# SkillSwap on AWS EKS.
+#
+#   kubectl create namespace skillswap
+#   kubectl -n skillswap create secret generic skillswap-secrets \
+#     --from-literal=MONGO_URI='mongodb+srv://user:pass@cluster.mongodb.net/skillswap' \
+#     --from-literal=JWT_SECRET='<long random string>'
+#   kubectl apply -f k8s/skillswap.yaml
+#
+# The database is expected to be managed (Atlas or DocumentDB) rather than a
+# pod, so the cluster stays stateless and a node rotation cannot lose data.
+
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: skillswap
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: skillswap-config
+  namespace: skillswap
+data:
+  NODE_ENV: 'production'
+  PORT: '5000'
+  JWT_EXPIRES_IN: '7d'
+  DNS_SERVERS: '8.8.8.8,1.1.1.1'
+  CREDITS_PER_HOUR: '1'
+  SIGNUP_BONUS_CREDITS: '3'
+  LOG_LEVEL: 'info'
+  CLIENT_ORIGIN: 'https://skillswap.example.com'
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skillswap-server
+  namespace: skillswap
+  labels: { app: skillswap, tier: api }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: skillswap, tier: api }
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  template:
+    metadata:
+      labels: { app: skillswap, tier: api }
+    spec:
+      containers:
+        - name: server
+          image: gowthami/skillswap-server:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 5000
+              name: http
+          envFrom:
+            - configMapRef: { name: skillswap-config }
+          env:
+            - name: MONGO_URI
+              valueFrom:
+                secretKeyRef: { name: skillswap-secrets, key: MONGO_URI }
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef: { name: skillswap-secrets, key: JWT_SECRET }
+          # /api/health returns 503 until Mongo is connected, so readiness
+          # holds traffic back until the pod can actually serve it.
+          readinessProbe:
+            httpGet: { path: /api/health, port: http }
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            failureThreshold: 3
+          livenessProbe:
+            httpGet: { path: /api/health, port: http }
+            initialDelaySeconds: 30
+            periodSeconds: 20
+            failureThreshold: 5
+          resources:
+            requests: { cpu: 100m, memory: 192Mi }
+            limits: { cpu: 500m, memory: 512Mi }
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities: { drop: ['ALL'] }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: server
+  namespace: skillswap
+spec:
+  selector: { app: skillswap, tier: api }
+  ports:
+    - port: 5000
+      targetPort: http
+      name: http
+  type: ClusterIP
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: skillswap-client
+  namespace: skillswap
+  labels: { app: skillswap, tier: web }
+spec:
+  replicas: 2
+  selector:
+    matchLabels: { app: skillswap, tier: web }
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: { maxSurge: 1, maxUnavailable: 0 }
+  template:
+    metadata:
+      labels: { app: skillswap, tier: web }
+    spec:
+      containers:
+        - name: client
+          image: gowthami/skillswap-client:latest
+          imagePullPolicy: Always
+          ports:
+            - containerPort: 80
+              name: http
+          readinessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: http }
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            requests: { cpu: 50m, memory: 64Mi }
+            limits: { cpu: 200m, memory: 256Mi }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: client
+  namespace: skillswap
+spec:
+  selector: { app: skillswap, tier: web }
+  ports:
+    - port: 80
+      targetPort: http
+      name: http
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: skillswap
+  namespace: skillswap
+  annotations:
+    kubernetes.io/ingress.class: alb
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTP":80},{"HTTPS":443}]'
+    alb.ingress.kubernetes.io/ssl-redirect: '443'
+    alb.ingress.kubernetes.io/healthcheck-path: /healthz
+spec:
+  rules:
+    - host: skillswap.example.com
+      http:
+        paths:
+          # Socket.io and the REST API both terminate on the server service.
+          - path: /api
+            pathType: Prefix
+            backend:
+              service: { name: server, port: { number: 5000 } }
+          - path: /socket.io
+            pathType: Prefix
+            backend:
+              service: { name: server, port: { number: 5000 } }
+          - path: /
+            pathType: Prefix
+            backend:
+              service: { name: client, port: { number: 80 } }
+---
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: skillswap-server
+  namespace: skillswap
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: skillswap-server
+  minReplicas: 2
+  maxReplicas: 8
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target: { type: Utilization, averageUtilization: 70 }

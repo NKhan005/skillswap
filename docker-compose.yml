@@ -1,0 +1,69 @@
+name: skillswap
+
+services:
+  mongo:
+    image: mongo:7
+    container_name: skillswap-mongo
+    restart: unless-stopped
+    environment:
+      MONGO_INITDB_DATABASE: skillswap
+    volumes:
+      - mongo-data:/data/db
+    # Bound to localhost so the database is reachable for tooling but not
+    # exposed on the host's public interfaces.
+    ports:
+      - '127.0.0.1:27017:27017'
+    healthcheck:
+      test: ['CMD', 'mongosh', '--quiet', '--eval', "db.adminCommand('ping').ok"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks: [skillswap]
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: skillswap-server
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      MONGO_URI: mongodb://mongo:27017/skillswap
+      JWT_SECRET: ${JWT_SECRET:-change_me_in_production}
+      JWT_EXPIRES_IN: 7d
+      CLIENT_ORIGIN: ${CLIENT_ORIGIN:-http://localhost:8080}
+      DNS_SERVERS: 8.8.8.8,1.1.1.1
+      CREDITS_PER_HOUR: 1
+      SIGNUP_BONUS_CREDITS: 3
+      LOG_LEVEL: info
+    depends_on:
+      mongo:
+        condition: service_healthy
+    ports:
+      - '5000:5000'
+    networks: [skillswap]
+
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+      args:
+        # Empty: the bundle calls its own origin and Nginx proxies to `server`.
+        VITE_API_URL: ''
+        VITE_SOCKET_URL: ''
+    container_name: skillswap-client
+    restart: unless-stopped
+    depends_on:
+      - server
+    ports:
+      - '8080:80'
+    networks: [skillswap]
+
+volumes:
+  mongo-data:
+
+networks:
+  skillswap:
+    driver: bridge
