@@ -367,12 +367,33 @@ Checkout SCM → Install → Test → Build bundle → SonarQube → Quality gat
 
 The quality gate aborts the build, so a failing Sonar analysis never reaches
 Docker Hub. Images are tagged `<build number>-<short SHA>` for traceability.
-Deployment is parallel and target-driven: `DEPLOY_TARGET=eks` rolls out to
-Kubernetes, anything else triggers the Coolify webhook.
 
-**Jenkins credentials required:** `dockerhub-credentials`, `sonarqube-token`,
-`coolify-webhook`, `kubeconfig-eks`.
-**Tools required:** NodeJS 20, SonarScanner.
+Outward-facing steps are build parameters that default to off, so a fresh
+Jenkins with no accounts configured still gets a green build:
+
+| Parameter | Default | Effect |
+|-----------|---------|--------|
+| `RUN_SONAR` | on | Analysis plus the quality gate |
+| `PUSH_IMAGES` | off | Push to Docker Hub; needs `dockerhub-credentials` |
+| `DEPLOY_TARGET` | `none` | `coolify` or `eks` to deploy and smoke test |
+
+### Running the pipeline locally
+
+Jenkins and SonarQube both run as containers, so the whole pipeline works on
+one machine with no cloud accounts:
+
+```bash
+docker compose -f docker-compose.ci.yml --env-file .env.ci up -d --build
+```
+
+Jenkins configures itself from [`ci/jenkins/jenkins.yaml`](ci/jenkins/jenkins.yaml)
+— admin user, Node and SonarScanner tools, the SonarQube server link and the
+pipeline job — so it comes up ready to build. Secrets come from `.env.ci`,
+which is gitignored; [`.env.ci.example`](.env.ci.example) documents each one.
+
+**[`ci/RUNBOOK.md`](ci/RUNBOOK.md) is the step-by-step guide**, and
+`bash ci/preflight.sh` reports which parts of the stack the current machine
+can run.
 
 Sonar settings live in [`sonar-project.properties`](sonar-project.properties).
 
