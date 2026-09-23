@@ -1,15 +1,26 @@
-# Plugins the SkillSwap Jenkinsfile needs.
+# Plugins the SkillSwap Jenkinsfile and JCasC config need.
+
+# Pipeline
 workflow-aggregator
+pipeline-stage-view
+pipeline-utility-steps
+
+# SCM
 git
 github
 github-branch-source
-pipeline-stage-view
+
+# Configuration as code, and the job DSL it uses to define the job
+configuration-as-code
+job-dsl
+
+# Tools the pipeline steps come from
 docker-workflow
 sonar
 nodejs
+
+# Build niceties the Jenkinsfile options block uses
 credentials-binding
 ansicolor
 timestamps
 ws-cleanup
-htmlpublisher
-pipeline-utility-steps

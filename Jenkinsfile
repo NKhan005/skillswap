@@ -36,6 +36,28 @@ pipeline {
     disableConcurrentBuilds()
   }
 
+  // Defaults are deliberately the safe, self-contained ones: a fresh Jenkins
+  // with no Docker Hub login and nowhere to deploy still gets a green build
+  // that checks out, tests, analyses and builds both images. Turn each
+  // outward-facing step on once its credentials exist.
+  parameters {
+    booleanParam(
+      name: 'RUN_SONAR',
+      defaultValue: true,
+      description: 'Run SonarQube analysis and wait for the quality gate.'
+    )
+    booleanParam(
+      name: 'PUSH_IMAGES',
+      defaultValue: false,
+      description: 'Push images to Docker Hub. Needs the dockerhub-credentials credential.'
+    )
+    choice(
+      name: 'DEPLOY_TARGET',
+      choices: ['none', 'coolify', 'eks'],
+      description: 'Where to deploy after a successful push. "none" builds only.'
+    )
+  }
+
   stages {
 
     stage('Checkout SCM') {
@@ -87,6 +109,7 @@ pipeline {
     }
 
     stage('SonarQube analysis') {
+      when { expression { return params.RUN_SONAR } }
       steps {
         script {
           def scannerHome = tool 'SonarScanner'
@@ -106,8 +129,12 @@ pipeline {
     }
 
     stage('Quality gate') {
+      when { expression { return params.RUN_SONAR } }
       steps {
         // Waits on the SonarQube webhook; a failed gate stops the release.
+        // SonarQube must be able to reach Jenkins back, so the webhook under
+        // Administration > Configuration > Webhooks has to exist or this
+        // simply times out.
         timeout(time: 10, unit: 'MINUTES') {
           waitForQualityGate abortPipeline: true
         }
@@ -157,12 +184,7 @@ pipeline {
     }
 
     stage('Push to Docker Hub') {
-      when {
-        anyOf {
-          branch 'main'
-          branch 'master'
-        }
-      }
+      when { expression { return params.PUSH_IMAGES } }
       steps {
         withCredentials([usernamePassword(
           credentialsId: 'dockerhub-credentials',
@@ -183,24 +205,19 @@ pipeline {
     }
 
     stage('Deploy') {
-      when {
-        anyOf {
-          branch 'main'
-          branch 'master'
-        }
-      }
+      when { expression { return params.DEPLOY_TARGET != 'none' } }
       parallel {
 
         stage('Coolify') {
-          when {
-            expression { return env.DEPLOY_TARGET == null || env.DEPLOY_TARGET == 'coolify' }
-          }
+          when { expression { return params.DEPLOY_TARGET == 'coolify' } }
           steps {
+            // Single-quoted so Groovy never interpolates the secret into the
+            // script text; both values arrive as shell environment variables.
             withCredentials([string(credentialsId: 'coolify-webhook', variable: 'COOLIFY_WEBHOOK')]) {
               sh '''
                 curl -fsSL -X POST "$COOLIFY_WEBHOOK" \
                   -H "Content-Type: application/json" \
-                  -d "{\\"tag\\":\\"''' + "${IMAGE_TAG}" + '''\\"}"
+                  -d "{\\"tag\\":\\"${IMAGE_TAG}\\"}"
               '''
             }
             echo "Coolify deploy triggered for ${IMAGE_TAG}"
@@ -208,9 +225,7 @@ pipeline {
         }
 
         stage('AWS EKS') {
-          when {
-            expression { return env.DEPLOY_TARGET == 'eks' }
-          }
+          when { expression { return params.DEPLOY_TARGET == 'eks' } }
           steps {
             withCredentials([file(credentialsId: 'kubeconfig-eks', variable: 'KUBECONFIG')]) {
               sh """
@@ -229,12 +244,7 @@ pipeline {
     }
 
     stage('Smoke test') {
-      when {
-        anyOf {
-          branch 'main'
-          branch 'master'
-        }
-      }
+      when { expression { return params.DEPLOY_TARGET != 'none' } }
       steps {
         script {
           def url = env.SMOKE_URL ?: 'http://localhost:8080/api/health'

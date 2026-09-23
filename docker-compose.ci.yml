@@ -22,9 +22,17 @@ services:
     container_name: skillswap-jenkins
     restart: unless-stopped
     environment:
-      # Seeds the initial admin user so the setup wizard can stay off.
+      # Read by the Configuration as Code file. Anything left unset simply
+      # produces an empty credential, which fails later with a clear error
+      # rather than silently half-working.
       JENKINS_ADMIN_ID: ${JENKINS_ADMIN_ID:-admin}
       JENKINS_ADMIN_PASSWORD: ${JENKINS_ADMIN_PASSWORD:-changeme}
+      SONAR_TOKEN: ${SONAR_TOKEN:-}
+      DOCKERHUB_USERNAME: ${DOCKERHUB_USERNAME:-}
+      DOCKERHUB_TOKEN: ${DOCKERHUB_TOKEN:-}
+      # Stage A clones the mounted working copy; at Stage B point this at
+      # the GitHub URL instead.
+      SKILLSWAP_REPO_URL: ${SKILLSWAP_REPO_URL:-file:///workspace/skillswap}
     ports:
       - '127.0.0.1:8081:8080' # 8080 is taken by the app's client container
       - '127.0.0.1:50000:50000' # inbound agents
@@ -33,6 +41,9 @@ services:
       # Lets Jenkins build images with the host daemon. On Windows and macOS
       # Docker Desktop exposes the socket at this same path.
       - /var/run/docker.sock:/var/run/docker.sock
+      # The repository itself, so the job has something to check out before a
+      # GitHub remote exists. Read-only: CI must never write to your worktree.
+      - .:/workspace/skillswap:ro
     networks: [ci]
 
   sonarqube:

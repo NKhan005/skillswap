@@ -1,0 +1,119 @@
+# Jenkins Configuration as Code.
+#
+# Everything the SkillSwap pipeline expects is declared here, so a fresh
+# container comes up with the job, the tools and the SonarQube link already
+# wired instead of needing a tour of the admin UI.
+#
+# Secrets are read from the environment (docker compose passes them in from
+# .env.ci) and never live in this file.
+
+jenkins:
+  systemMessage: "SkillSwap CI - Jenkins, SonarQube, Docker. Configured as code."
+  numExecutors: 2
+  mode: NORMAL
+
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "${JENKINS_ADMIN_ID:-admin}"
+          password: "${JENKINS_ADMIN_PASSWORD:-changeme}"
+
+  authorizationStrategy:
+    loggedInAuthorizationStrategy:
+      allowAnonymousRead: false
+
+  # The pipeline shells out to the host Docker daemon on the controller.
+  nodes: []
+
+security:
+  # The pipeline is trusted local code; skip the sandbox approval dance.
+  globalJobDslSecurityConfiguration:
+    useScriptSecurity: false
+
+tool:
+  git:
+    installations:
+      - name: "Default"
+        home: "git"
+
+  # Node is baked into the image, so point the tool at it rather than
+  # downloading a second copy on every build.
+  nodejs:
+    installations:
+      - name: "NodeJS-20"
+        home: "/usr"
+
+  sonarRunnerInstallation:
+    installations:
+      - name: "SonarScanner"
+        properties:
+          - installSource:
+              installers:
+                - sonarRunnerInstaller:
+                    id: "6.2.1.4610"
+
+unclassified:
+  # Matches withSonarQubeEnv('SonarQube') in the Jenkinsfile.
+  sonarGlobalConfiguration:
+    buildWrapperEnabled: true
+    installations:
+      - name: "SonarQube"
+        serverUrl: "http://sonarqube:9000"
+        credentialsId: "sonarqube-token"
+        triggerRemoteQualityGate: true
+
+  location:
+    url: "http://localhost:8081/"
+
+credentials:
+  system:
+    domainCredentials:
+      - credentials:
+          # Generated in the SonarQube UI, then pasted into .env.ci.
+          # Left empty the analysis stage simply fails with a clear 401.
+          - string:
+              scope: GLOBAL
+              id: "sonarqube-token"
+              secret: "${SONAR_TOKEN:-}"
+              description: "SonarQube analysis token"
+
+          # Filled in at Stage B, when Docker Hub comes into play.
+          - usernamePassword:
+              scope: GLOBAL
+              id: "dockerhub-credentials"
+              username: "${DOCKERHUB_USERNAME:-}"
+              password: "${DOCKERHUB_TOKEN:-}"
+              description: "Docker Hub - use an access token, not the account password"
+
+jobs:
+  - script: |
+      pipelineJob('skillswap') {
+        description('SkillSwap CI/CD - checkout, test, SonarQube, Docker build.')
+
+        logRotator {
+          numToKeep(20)
+        }
+
+        definition {
+          cpsScm {
+            scm {
+              git {
+                remote {
+                  // Stage A reads the repository straight off the mounted
+                  // working copy. At Stage B, swap this for the GitHub URL.
+                  url(System.getenv('SKILLSWAP_REPO_URL') ?: 'file:///workspace/skillswap')
+                }
+                branch('*/main')
+                extensions {
+                  cloneOptions {
+                    shallow(false)
+                  }
+                }
+              }
+            }
+            scriptPath('Jenkinsfile')
+            lightweight(false)
+          }
+        }
+      }
