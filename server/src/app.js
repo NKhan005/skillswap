@@ -23,7 +23,7 @@ function createApp() {
   app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
   app.use(
     cors({
-      origin: env.CLIENT_ORIGIN.split(',').map((s) => s.trim()),
+      origin: env.CLIENT_ORIGIN,
       credentials: true,
     })
   );

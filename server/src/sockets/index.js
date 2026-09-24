@@ -22,7 +22,7 @@ const { setIO } = require('./emitter');
 function initSocketServer(httpServer) {
   const io = new Server(httpServer, {
     cors: {
-      origin: env.CLIENT_ORIGIN.split(',').map((s) => s.trim()),
+      origin: env.CLIENT_ORIGIN,
       methods: ['GET', 'POST'],
       credentials: true,
     },

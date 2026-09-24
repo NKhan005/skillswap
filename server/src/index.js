@@ -19,7 +19,7 @@ async function bootstrap() {
 
   server.listen(env.PORT, () => {
     logger.info(`SkillSwap API listening on :${env.PORT} (${env.NODE_ENV})`);
-    logger.info(`CORS origin: ${env.CLIENT_ORIGIN}`);
+    logger.info(`CORS origins: ${env.CLIENT_ORIGIN.join(', ')}`);
   });
 
   const shutdown = async (signal) => {
