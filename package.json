@@ -16,5 +16,8 @@
     "docker:logs": "docker compose logs -f"
   },
   "author": "Gowthami",
-  "license": "MIT"
+  "license": "MIT",
+  "engines": {
+    "node": ">=20.19"
+  }
 }

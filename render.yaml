@@ -24,10 +24,21 @@ services:
 
     # Build both halves, then drop the client's dev dependencies. The server
     # keeps only production dependencies; the client's are build-time only.
+    #
+    # `cd` rather than `npm --prefix`: with --prefix, the script still runs
+    # with the repository root as its working directory, so Vite resolves its
+    # project root to the wrong place and emits nothing useful.
+    #
+    # The `test -f` is deliberate. Without it a missing client build produces
+    # a perfectly green deploy that serves only the API - the server falls
+    # back to API-only mode by design - and the site looks broken for a reason
+    # nothing reports. Better to fail the build here and say why.
     buildCommand: |
-      npm --prefix server ci --omit=dev
-      npm --prefix client ci
-      npm --prefix client run build
+      set -e
+      cd server && npm ci --omit=dev && cd ..
+      cd client && npm ci && npm run build && cd ..
+      test -f client/dist/index.html || { echo "FATAL: client build produced no dist/index.html"; exit 1; }
+      echo "client build OK: $(ls client/dist/assets | tr '\n' ' ')"
       rm -rf client/node_modules
 
     startCommand: node server/src/index.js
@@ -37,6 +48,12 @@ services:
     healthCheckPath: /api/health
 
     envVars:
+      # Vite 8 requires Node 20.19+ (or 22.12+). Render's default is older,
+      # and `vite build` fails on it - which is how the first deploy went
+      # green with no client build at all.
+      - key: NODE_VERSION
+        value: 22.12.0
+
       - key: NODE_ENV
         value: production
 

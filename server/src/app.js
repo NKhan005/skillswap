@@ -88,7 +88,10 @@ function serveClientBuild(app) {
   const dist = process.env.CLIENT_DIST_PATH || path.join(__dirname, '..', '..', 'client', 'dist');
 
   if (!fs.existsSync(path.join(dist, 'index.html'))) {
-    logger.info('No client build found; serving the API only');
+    // Say where it looked. Finding nothing is normal in development, where
+    // Vite serves the client, but in a deployment it means the build step
+    // did not run and the site will answer with JSON instead of the app.
+    logger.warn(`No client build at ${dist}; serving the API only`);
 
     // Without a build, the root is the API's own banner rather than a 404.
     app.get('/', (_req, res) => {
