@@ -105,8 +105,8 @@ const VERIFICATION_LINKS = ['githubUrl', 'leetcodeUrl', 'portfolioUrl', 'linkedi
  * Feature 9 - merge verification links rather than replacing the subdocument,
  * so a partial update cannot wipe certifications the client did not send.
  */
-function mergeVerification(current = {}, incoming) {
-  const merged = current;
+function mergeVerification(current, incoming) {
+  const merged = current || {};
 
   for (const key of VERIFICATION_LINKS) {
     if (incoming[key] !== undefined) merged[key] = incoming[key];

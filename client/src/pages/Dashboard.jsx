@@ -73,6 +73,10 @@ export default function Dashboard() {
   const active = swaps.filter((s) => s.status === 'accepted');
   const completed = swaps.filter((s) => s.status === 'completed');
   const mutualCount = matches.filter((m) => m.matchType === 'mutual').length;
+  const greeting =
+    mutualCount > 0
+      ? `${mutualCount} mutual ${mutualCount === 1 ? 'match' : 'matches'} waiting for you.`
+      : 'Add more skills to your profile to sharpen your matches.';
   const joinedChallenges = challenges.filter((c) => c.joined && !c.completed);
 
   return (
@@ -83,11 +87,7 @@ export default function Dashboard() {
           <h1 className="text-2xl font-bold tracking-tight text-slate-900">
             Hi {user.name.split(' ')[0]}
           </h1>
-          <p className="mt-1 text-sm text-slate-500">
-            {mutualCount > 0
-              ? `${mutualCount} mutual match${mutualCount === 1 ? '' : 'es'} waiting for you.`
-              : 'Add more skills to your profile to sharpen your matches.'}
-          </p>
+          <p className="mt-1 text-sm text-slate-500">{greeting}</p>
         </div>
         <Link to="/explore" className="btn-primary">
           <Sparkles size={16} />

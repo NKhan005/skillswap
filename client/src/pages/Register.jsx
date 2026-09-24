@@ -92,6 +92,16 @@ export default function Register() {
     add();
   };
 
+  /** What the location button says, in its three states. */
+  let locationLabel = 'Use my location for nearby matches';
+  if (locating) {
+    locationLabel = 'Finding you...';
+  } else if (coordinates) {
+    // Displayed latitude first, the order people expect, though GeoJSON
+    // stores [longitude, latitude].
+    locationLabel = `Location set (${coordinates[1].toFixed(3)}, ${coordinates[0].toFixed(3)})`;
+  }
+
   const goToStepTwo = (e) => {
     e.preventDefault();
     setError('');
@@ -235,11 +245,7 @@ export default function Register() {
                 className={`btn-secondary justify-start ${coordinates ? 'border-emerald-300 bg-emerald-50 text-emerald-700' : ''}`}
               >
                 <MapPin size={16} />
-                {locating
-                  ? 'Finding you...'
-                  : coordinates
-                    ? `Location set (${coordinates[1].toFixed(3)}, ${coordinates[0].toFixed(3)})`
-                    : 'Use my location for nearby matches'}
+                {locationLabel}
               </button>
 
               <ErrorNote>{error}</ErrorNote>

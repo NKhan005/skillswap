@@ -54,9 +54,9 @@ function initSocketServer(httpServer) {
    * chat_error to the sender plus a negative acknowledgement. Keeping this in
    * one place is what stops each handler carrying its own try/catch.
    */
-  const handle = (socket, fn) => async (payload = {}, ack) => {
+  const handle = (socket, fn) => async (payload, ack) => {
     try {
-      const result = await fn(payload, socket);
+      const result = await fn(payload || {}, socket);
       if (typeof ack === 'function') ack({ ok: true, ...(result || {}) });
     } catch (err) {
       socket.emit('chat_error', { message: err.message });
