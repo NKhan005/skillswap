@@ -204,6 +204,8 @@ want a live URL:
 | *Quality gate* hangs then times out | The SonarQube webhook in A3 is missing or has the wrong URL. |
 | SonarQube exits shortly after start | Elasticsearch bootstrap check. `SONAR_ES_BOOTSTRAP_CHECKS_DISABLE` is already set; if it persists, give Docker Desktop more memory. |
 | `denied: requested access to the resource is denied` on push | `DOCKERHUB_NAMESPACE` does not match the logged-in account. |
+| `Login Succeeded` but push fails with `access token has insufficient scopes` | The token was created read-only. Docker Hub bakes the scope in at creation and editing it afterwards does not take effect — generate a **new** token with *Read & Write*. |
+| Image build fails with `401 incorrect username or password` while fetching `docker/dockerfile` | Stale credentials in the agent's `~/.docker/config.json`, which lives in the Jenkins volume. buildx offers them even for anonymous pulls. The pipeline now runs `docker logout` in its post block; to clear an existing one: `docker exec skillswap-jenkins docker logout`. |
 | Jenkins job cannot clone `file:///workspace/skillswap` | The read-only mount is missing, or the commit is not on `main`. |
 | `buildWithParameters` returns HTTP 400 | A pipeline's parameters are declared in the Jenkinsfile, so Jenkins only learns them by running the job once — and updating the job's `config.xml` clears them again. Trigger a plain `/build` first. |
 | Build fails with `BuildKit is enabled but the buildx component is missing` | The Jenkins image needs `docker-buildx-plugin`, because the pipeline sets `DOCKER_BUILDKIT=1`. |
