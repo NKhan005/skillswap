@@ -19,17 +19,22 @@ jenkins:
         - id: "${JENKINS_ADMIN_ID:-admin}"
           password: "${JENKINS_ADMIN_PASSWORD:-changeme}"
 
+  # matrix-auth rather than the core loggedInAuthorizationStrategy: the core
+  # symbol is not resolvable by this Jenkins/JCasC combination, and an
+  # explicit matrix is clearer about who can do what anyway.
   authorizationStrategy:
-    loggedInAuthorizationStrategy:
-      allowAnonymousRead: false
+    globalMatrix:
+      entries:
+        - user:
+            name: "${JENKINS_ADMIN_ID:-admin}"
+            permissions:
+              - "Overall/Administer"
 
-  # The pipeline shells out to the host Docker daemon on the controller.
-  nodes: []
-
-security:
-  # The pipeline is trusted local code; skip the sandbox approval dance.
-  globalJobDslSecurityConfiguration:
-    useScriptSecurity: false
+# The job itself is not defined here. job-dsl's JCasC seed-job integration
+# fails against this configuration-as-code version with
+# NoClassDefFoundError: io/vavr/CheckedFunction0Module, which aborts the whole
+# boot. ci/jenkins/create-job.sh posts the job's config.xml to the REST API
+# instead - fewer moving parts, and no plugin version to keep in step.
 
 tool:
   git:
@@ -61,7 +66,6 @@ unclassified:
       - name: "SonarQube"
         serverUrl: "http://sonarqube:9000"
         credentialsId: "sonarqube-token"
-        triggerRemoteQualityGate: true
 
   location:
     url: "http://localhost:8081/"
@@ -85,35 +89,3 @@ credentials:
               username: "${DOCKERHUB_USERNAME:-}"
               password: "${DOCKERHUB_TOKEN:-}"
               description: "Docker Hub - use an access token, not the account password"
-
-jobs:
-  - script: |
-      pipelineJob('skillswap') {
-        description('SkillSwap CI/CD - checkout, test, SonarQube, Docker build.')
-
-        logRotator {
-          numToKeep(20)
-        }
-
-        definition {
-          cpsScm {
-            scm {
-              git {
-                remote {
-                  // Stage A reads the repository straight off the mounted
-                  // working copy. At Stage B, swap this for the GitHub URL.
-                  url(System.getenv('SKILLSWAP_REPO_URL') ?: 'file:///workspace/skillswap')
-                }
-                branch('*/main')
-                extensions {
-                  cloneOptions {
-                    shallow(false)
-                  }
-                }
-              }
-            }
-            scriptPath('Jenkinsfile')
-            lightweight(false)
-          }
-        }
-      }

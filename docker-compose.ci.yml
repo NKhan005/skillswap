@@ -44,6 +44,8 @@ services:
       # The repository itself, so the job has something to check out before a
       # GitHub remote exists. Read-only: CI must never write to your worktree.
       - .:/workspace/skillswap:ro
+      # The live config, so editing it needs only a restart, not a rebuild.
+      - ./ci/jenkins/jenkins.yaml:/var/jenkins_conf/jenkins.yaml:ro
     networks: [ci]
 
   sonarqube:

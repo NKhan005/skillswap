@@ -38,12 +38,17 @@ RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
 COPY plugins.txt /usr/share/jenkins/ref/plugins.txt
 RUN jenkins-plugin-cli --plugin-file /usr/share/jenkins/ref/plugins.txt
 
-COPY jenkins.yaml /var/jenkins_home/casc/jenkins.yaml
-RUN chown -R jenkins:jenkins /var/jenkins_home/casc
+# Deliberately NOT under /var/jenkins_home: that path is a named volume, and
+# once the volume exists it shadows whatever the image put there - so a
+# config baked into the image would be silently ignored on every run after
+# the first. Compose bind-mounts the real file over this one, which also
+# means editing the config needs no image rebuild.
+COPY jenkins.yaml /var/jenkins_conf/jenkins.yaml
+RUN chown -R jenkins:jenkins /var/jenkins_conf
 
 USER jenkins
 
 # Skip the setup wizard - the admin user, tools, credentials and the job all
 # come from the Configuration as Code file instead.
 ENV JAVA_OPTS="-Djenkins.install.runSetupWizard=false" \
-    CASC_JENKINS_CONFIG="/var/jenkins_home/casc/jenkins.yaml"
+    CASC_JENKINS_CONFIG="/var/jenkins_conf/jenkins.yaml"

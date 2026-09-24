@@ -12,7 +12,6 @@ github-branch-source
 
 # Configuration as code, and the job DSL it uses to define the job
 configuration-as-code
-job-dsl
 
 # Tools the pipeline steps come from
 docker-workflow
@@ -21,6 +20,7 @@ nodejs
 
 # Build niceties the Jenkinsfile options block uses
 credentials-binding
+matrix-auth
 ansicolor
-timestamps
+timestamper
 ws-cleanup
