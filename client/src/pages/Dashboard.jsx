@@ -1,20 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import {
-  Coins,
-  ShieldCheck,
-  Repeat,
-  Sparkles,
-  ArrowRight,
-  Inbox,
-  TrendingUp,
-  Trophy,
-} from 'lucide-react';
+import { Coins, ShieldCheck, Repeat, Sparkles, ArrowRight, Inbox } from 'lucide-react';
 import { endpoints } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
-import { Avatar, Chip, EmptyState, Spinner, StatTile, TrustBadge } from '../components/ui';
+import { EmptyState, Spinner, StatTile, TrustBadge } from '../components/ui';
 import MatchCard from '../components/MatchCard';
+import { IncomingRequests, ChallengeProgress, RecentActivity } from '../components/DashboardPanels';
 import SwapRequestModal from '../components/SwapRequestModal';
 
 /**
@@ -169,28 +161,7 @@ export default function Dashboard() {
 
         {/* Side column */}
         <div className="grid content-start gap-6">
-          {/* Incoming requests */}
-          <section className="card p-5">
-            <h2 className="mb-3 font-semibold text-slate-900">Requests for you</h2>
-            {incoming.length === 0 ? (
-              <p className="py-4 text-center text-sm text-slate-400">Nothing waiting.</p>
-            ) : (
-              <ul className="grid gap-3">
-                {incoming.slice(0, 4).map((s) => (
-                  <li key={s._id} className="flex items-center gap-3">
-                    <Avatar name={s.requester.name} src={s.requester.avatarUrl} size={36} />
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-sm font-medium text-slate-800">{s.requester.name}</p>
-                      <p className="truncate text-xs text-slate-500">wants {s.skillRequested}</p>
-                    </div>
-                    <Link to="/swaps" className="btn-secondary px-2.5 py-1.5 text-xs">
-                      Review
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
+          <IncomingRequests swaps={incoming} />
 
           {/* Trust breakdown */}
           <section className="card p-5">
@@ -226,66 +197,9 @@ export default function Dashboard() {
             </div>
           </section>
 
-          {/* Challenges */}
-          <section className="card p-5">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="font-semibold text-slate-900">Challenges</h2>
-              <Link to="/challenges" className="text-sm font-medium text-brand-600 hover:underline">
-                All
-              </Link>
-            </div>
+          <ChallengeProgress challenges={joinedChallenges} />
 
-            {joinedChallenges.length === 0 ? (
-              <div className="py-3 text-center">
-                <Trophy size={20} className="mx-auto text-slate-300" />
-                <p className="mt-2 text-sm text-slate-400">Join one to earn bonus credits.</p>
-              </div>
-            ) : (
-              <ul className="grid gap-3">
-                {joinedChallenges.slice(0, 3).map((c) => (
-                  <li key={c._id}>
-                    <div className="flex items-center justify-between text-sm">
-                      <span className="font-medium text-slate-700">{c.title}</span>
-                      <Chip tone="mint">+{c.rewardCredits}</Chip>
-                    </div>
-                    <div className="mt-1.5 flex items-center gap-2">
-                      <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-100">
-                        <div className="h-full rounded-full bg-emerald-500" style={{ width: `${c.percent}%` }} />
-                      </div>
-                      <span className="text-xs text-slate-400">
-                        {c.progress}/{c.target}
-                      </span>
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-
-          {/* Activity */}
-          <section className="card p-5">
-            <h2 className="mb-3 flex items-center gap-2 font-semibold text-slate-900">
-              <TrendingUp size={16} className="text-slate-400" />
-              Recent activity
-            </h2>
-            {completed.length === 0 ? (
-              <p className="py-3 text-center text-sm text-slate-400">No completed swaps yet.</p>
-            ) : (
-              <ul className="grid gap-2.5 text-sm">
-                {completed.slice(0, 4).map((s) => {
-                  const other = s.requester._id === user.id ? s.provider : s.requester;
-                  return (
-                    <li key={s._id} className="flex items-center gap-2 text-slate-600">
-                      <Avatar name={other.name} src={other.avatarUrl} size={26} />
-                      <span className="truncate">
-                        {s.skillRequested} with <span className="font-medium text-slate-800">{other.name}</span>
-                      </span>
-                    </li>
-                  );
-                })}
-              </ul>
-            )}
-          </section>
+          <RecentActivity swaps={completed} viewerId={user.id} />
         </div>
       </div>
 
