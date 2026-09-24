@@ -205,4 +205,8 @@ want a live URL:
 | SonarQube exits shortly after start | Elasticsearch bootstrap check. `SONAR_ES_BOOTSTRAP_CHECKS_DISABLE` is already set; if it persists, give Docker Desktop more memory. |
 | `denied: requested access to the resource is denied` on push | `DOCKERHUB_NAMESPACE` does not match the logged-in account. |
 | Jenkins job cannot clone `file:///workspace/skillswap` | The read-only mount is missing, or the commit is not on `main`. |
+| `buildWithParameters` returns HTTP 400 | A pipeline's parameters are declared in the Jenkinsfile, so Jenkins only learns them by running the job once — and updating the job's `config.xml` clears them again. Trigger a plain `/build` first. |
+| Build fails with `BuildKit is enabled but the buildx component is missing` | The Jenkins image needs `docker-buildx-plugin`, because the pipeline sets `DOCKER_BUILDKIT=1`. |
+| `permission denied ... /var/run/docker.sock` | Docker Desktop exposes the socket as `root:root` mode 660; the jenkins user needs `group_add: ["0"]`. |
+| `detected dubious ownership in repository` | The bind-mounted repo is owned by another uid. `safe.directory` is only honoured from system or global config, and `/var/jenkins_home` is a volume — hence `GIT_CONFIG_GLOBAL` pointing outside it. |
 | Containers cannot reach each other | Jenkins and SonarQube share the `ci` network; use service names (`http://sonarqube:9000`), not `localhost`. |

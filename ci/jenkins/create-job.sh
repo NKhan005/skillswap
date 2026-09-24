@@ -72,6 +72,11 @@ status=$(curl -s -o "$response" -w '%{http_code}' -X POST \
 
 if [ "$status" = "200" ] || [ "$status" = "302" ]; then
   echo "Done - ${JENKINS_URL}/job/${JOB_NAME}/"
+  echo
+  echo "Note: a pipeline's parameters live in the Jenkinsfile, so Jenkins only"
+  echo "learns them by running the job once. Until then buildWithParameters"
+  echo "returns HTTP 400 - trigger a plain build first:"
+  echo "  POST ${JENKINS_URL}/job/${JOB_NAME}/build"
   rm -f "$response"
 else
   echo "Jenkins returned HTTP ${status}:" >&2
