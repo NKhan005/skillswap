@@ -19,7 +19,9 @@ pipeline {
   }
 
   environment {
-    DOCKERHUB_NAMESPACE = 'gowthami'
+    // Must match the Docker Hub account the pipeline logs in as, or the push
+    // fails with "denied: requested access to the resource is denied".
+    DOCKERHUB_NAMESPACE = 'nyamatullakhan'
     SERVER_IMAGE        = "${DOCKERHUB_NAMESPACE}/skillswap-server"
     CLIENT_IMAGE        = "${DOCKERHUB_NAMESPACE}/skillswap-client"
     // A short SHA makes every build traceable back to a commit.
