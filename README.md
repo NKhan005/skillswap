@@ -2,6 +2,11 @@
 
 > **Exchange Skills, Not Money.**
 
+**Live: [skillswap-hryf.onrender.com](https://skillswap-hryf.onrender.com)**
+
+Hosted on Render's free tier, so the first request after a quiet spell takes
+a few seconds to wake the service. See [DEPLOYMENT.md](DEPLOYMENT.md).
+
 A marketplace where people trade skills instead of cash. Either barter directly
 — you teach React, they teach guitar — or settle in **time credits** when there
 is no direct match: teach for two hours, earn two credits, spend them on
