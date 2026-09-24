@@ -37,6 +37,21 @@
     <scriptPath>Jenkinsfile</scriptPath>
     <lightweight>false</lightweight>
   </definition>
-  <triggers/>
+  <triggers>
+    <!--
+      Poll GitHub every five minutes and build when the commit changes.
+
+      Polling rather than a webhook because this Jenkins is on localhost and
+      GitHub cannot reach it. If the instance is ever exposed, replace this
+      with a GitHub webhook: it is instant and costs no requests.
+
+      H spreads the poll across the interval instead of firing on the minute,
+      so several jobs do not stampede together.
+    -->
+    <hudson.triggers.SCMTrigger>
+      <spec>H/5 * * * *</spec>
+      <ignorePostCommitHooks>false</ignorePostCommitHooks>
+    </hudson.triggers.SCMTrigger>
+  </triggers>
   <disabled>false</disabled>
 </flow-definition>
