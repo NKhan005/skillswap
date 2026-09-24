@@ -102,6 +102,12 @@ const userSchema = new mongoose.Schema(
       unique: true,
       lowercase: true,
       trim: true,
+      // 254 is the maximum length RFC 5321 allows for a path. It is also what
+      // bounds the matcher below: `[^\s@]+\.[^\s@]+` can split a dotted tail
+      // many ways, so matching cost grows quadratically with input length.
+      // That is only a denial-of-service risk on unbounded input - capped at
+      // 254 characters the worst case is trivial.
+      maxlength: [254, 'Email address is too long'],
       match: [/^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'Please provide a valid email'],
     },
     password: {

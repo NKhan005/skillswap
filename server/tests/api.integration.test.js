@@ -83,6 +83,24 @@ test('the same email cannot register twice', async () => {
   assert.match(res.body.message, /already registered/i);
 });
 
+test('an oversized email is rejected quickly, before pattern matching', async () => {
+  // The email matcher's cost grows with input length, so an unbounded string
+  // is a denial-of-service vector. The length check runs first and bails.
+  const huge = `${'a'.repeat(100_000)}@example.com`;
+
+  const started = Date.now();
+  const res = await api().post('/api/auth/register').send({
+    name: 'Too Long',
+    email: huge,
+    password: 'password123',
+  });
+  const elapsed = Date.now() - started;
+
+  assert.equal(res.status, 400);
+  assert.match(JSON.stringify(res.body.details || {}), /too long/i);
+  assert.ok(elapsed < 2000, `rejection should be immediate, took ${elapsed}ms`);
+});
+
 test('a short password is rejected with a field-level message', async () => {
   const res = await api()
     .post('/api/auth/register')
