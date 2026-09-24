@@ -49,16 +49,21 @@ export function Avatar({ name = '?', src, size = 40, className = '' }) {
   );
 }
 
+/**
+ * Trust bands, highest first: the first threshold a score clears wins.
+ * A table rather than a ternary ladder, so the bands stay readable and the
+ * boundaries are visible at a glance.
+ */
+const TRUST_BANDS = [
+  { min: 80, tone: 'bg-emerald-100 text-emerald-700', label: 'Trusted' },
+  { min: 50, tone: 'bg-sky-100 text-sky-700', label: 'Established' },
+  { min: 1, tone: 'bg-amber-100 text-amber-800', label: 'Building' },
+  { min: 0, tone: 'bg-slate-100 text-slate-600', label: 'New' },
+];
+
 /** Trust score badge - colour tracks the band, not just the number. */
 export function TrustBadge({ score = 0, size = 'md', showLabel = true }) {
-  const band =
-    score >= 80
-      ? { tone: 'bg-emerald-100 text-emerald-700', label: 'Trusted' }
-      : score >= 50
-        ? { tone: 'bg-sky-100 text-sky-700', label: 'Established' }
-        : score > 0
-          ? { tone: 'bg-amber-100 text-amber-800', label: 'Building' }
-          : { tone: 'bg-slate-100 text-slate-600', label: 'New' };
+  const band = TRUST_BANDS.find((b) => score >= b.min) ?? TRUST_BANDS.at(-1);
 
   const pad = size === 'sm' ? 'px-2 py-0.5 text-xs' : 'px-2.5 py-1 text-sm';
 

@@ -95,48 +95,54 @@ const getMe = asyncHandler(async (req, res) => {
   res.json({ success: true, user: sessionPayload(req.user) });
 });
 
+/** Fields copied straight across when the request supplies them. */
+const SCALAR_FIELDS = ['name', 'bio', 'city', 'avatarUrl', 'experienceLevel'];
+/** Fields only accepted as arrays, so a stray value cannot clear a list. */
+const ARRAY_FIELDS = ['skillsOffered', 'skillsNeeded'];
+const VERIFICATION_LINKS = ['githubUrl', 'leetcodeUrl', 'portfolioUrl', 'linkedinUrl'];
+
+/**
+ * Feature 9 - merge verification links rather than replacing the subdocument,
+ * so a partial update cannot wipe certifications the client did not send.
+ */
+function mergeVerification(current = {}, incoming) {
+  const merged = current;
+
+  for (const key of VERIFICATION_LINKS) {
+    if (incoming[key] !== undefined) merged[key] = incoming[key];
+  }
+  if (Array.isArray(incoming.certifications)) merged.certifications = incoming.certifications;
+  if (Array.isArray(incoming.projects)) merged.projects = incoming.projects;
+
+  merged.isVerified = Boolean(
+    merged.githubUrl || merged.portfolioUrl || merged.linkedinUrl || (merged.certifications || []).length
+  );
+
+  return merged;
+}
+
 /** PUT /api/auth/me - profile, skills, location and verification links. */
 const updateMe = asyncHandler(async (req, res) => {
   const user = req.user;
-  const {
-    name,
-    bio,
-    city,
-    avatarUrl,
-    experienceLevel,
-    skillsOffered,
-    skillsNeeded,
-    coordinates,
-    isAvailable,
-    verification,
-  } = req.body;
+  const body = req.body;
 
-  if (name !== undefined) user.name = name;
-  if (bio !== undefined) user.bio = bio;
-  if (city !== undefined) user.city = city;
-  if (avatarUrl !== undefined) user.avatarUrl = avatarUrl;
-  if (experienceLevel !== undefined) user.experienceLevel = experienceLevel;
-  if (Array.isArray(skillsOffered)) user.skillsOffered = skillsOffered;
-  if (Array.isArray(skillsNeeded)) user.skillsNeeded = skillsNeeded;
-  if (isAvailable !== undefined) user.isAvailable = Boolean(isAvailable);
+  for (const field of SCALAR_FIELDS) {
+    if (body[field] !== undefined) user[field] = body[field];
+  }
+  for (const field of ARRAY_FIELDS) {
+    if (Array.isArray(body[field])) user[field] = body[field];
+  }
+  if (body.isAvailable !== undefined) user.isAvailable = Boolean(body.isAvailable);
 
-  if (Array.isArray(coordinates) && coordinates.length === 2) {
-    user.location = { type: 'Point', coordinates: [Number(coordinates[0]), Number(coordinates[1])] };
+  if (Array.isArray(body.coordinates) && body.coordinates.length === 2) {
+    user.location = {
+      type: 'Point',
+      coordinates: [Number(body.coordinates[0]), Number(body.coordinates[1])],
+    };
   }
 
-  // Feature 9 - merge verification links instead of replacing the subdocument,
-  // so a partial update cannot wipe certifications the client did not send.
-  if (verification && typeof verification === 'object') {
-    const v = user.verification || {};
-    for (const key of ['githubUrl', 'leetcodeUrl', 'portfolioUrl', 'linkedinUrl']) {
-      if (verification[key] !== undefined) v[key] = verification[key];
-    }
-    if (Array.isArray(verification.certifications)) v.certifications = verification.certifications;
-    if (Array.isArray(verification.projects)) v.projects = verification.projects;
-    v.isVerified = Boolean(
-      v.githubUrl || v.portfolioUrl || v.linkedinUrl || (v.certifications || []).length
-    );
-    user.verification = v;
+  if (body.verification && typeof body.verification === 'object') {
+    user.verification = mergeVerification(user.verification, body.verification);
     user.markModified('verification');
   }
 

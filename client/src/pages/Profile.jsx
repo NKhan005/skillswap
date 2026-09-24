@@ -135,8 +135,8 @@ function PublicProfile({ id }) {
           </div>
           {(v.certifications || []).length > 0 && (
             <ul className="mt-4 grid gap-2">
-              {v.certifications.map((c, i) => (
-                <li key={i} className="flex items-center gap-2 text-sm text-slate-600">
+              {v.certifications.map((c) => (
+                <li key={c._id || c.title} className="flex items-center gap-2 text-sm text-slate-600">
                   <Award size={15} className="text-amber-500" />
                   <span className="font-medium text-slate-800">{c.title}</span>
                   {c.issuer && <span className="text-slate-400">- {c.issuer}</span>}
@@ -258,8 +258,19 @@ function MyProfile() {
   };
 
   const addCert = () => {
-    if (!certDraft.title.trim()) return;
-    setVerification({ ...verification, certifications: [...verification.certifications, certDraft] });
+    const title = certDraft.title.trim();
+    // Reject duplicates, which also keeps the title usable as a stable key.
+    const duplicate = verification.certifications.some(
+      (c) => c.title.trim().toLowerCase() === title.toLowerCase()
+    );
+    if (!title || duplicate) {
+      setCertDraft({ title: '', issuer: '', credentialUrl: '' });
+      return;
+    }
+    setVerification({
+      ...verification,
+      certifications: [...verification.certifications, { ...certDraft, title }],
+    });
     setCertDraft({ title: '', issuer: '', credentialUrl: '' });
   };
 
@@ -461,7 +472,7 @@ function MyProfile() {
           <p className="label">Certifications</p>
           <ul className="grid gap-2">
             {verification.certifications.map((c, i) => (
-              <li key={i} className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 text-sm">
+              <li key={c._id || c.title} className="flex items-center gap-2 rounded-xl bg-slate-50 px-3 py-2 text-sm">
                 <Award size={15} className="text-amber-500" />
                 <span className="font-medium text-slate-800">{c.title}</span>
                 {c.issuer && <span className="text-slate-500">- {c.issuer}</span>}

@@ -6,6 +6,14 @@ import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
 import { Avatar, Chip, EmptyState, Spinner, TrustBadge } from '../components/ui';
 
+/** Leaderboard rank colours, keyed by zero-based position. */
+const RANK_TONES = {
+  0: 'bg-amber-100 text-amber-700',
+  1: 'bg-slate-200 text-slate-600',
+  2: 'bg-orange-100 text-orange-700',
+  default: 'text-slate-400',
+};
+
 const METRIC_LABEL = {
   completed_swaps: 'completed swaps',
   people_taught: 'people taught',
@@ -156,13 +164,7 @@ export default function Challenges() {
                 <li key={l._id} className="flex items-center gap-2.5">
                   <span
                     className={`grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-bold ${
-                      i === 0
-                        ? 'bg-amber-100 text-amber-700'
-                        : i === 1
-                          ? 'bg-slate-200 text-slate-600'
-                          : i === 2
-                            ? 'bg-orange-100 text-orange-700'
-                            : 'text-slate-400'
+                      RANK_TONES[i] || RANK_TONES.default
                     }`}
                   >
                     {i + 1}

@@ -53,6 +53,9 @@ export default function Navbar() {
 
   if (!user) return null;
 
+  const notificationsLabel =
+    feed.length > 0 ? `Notifications, ${feed.length} unread` : 'Notifications';
+
   const linkClass = ({ isActive }) =>
     `flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition ${
       isActive ? 'bg-brand-50 text-brand-700' : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
@@ -84,7 +87,7 @@ export default function Navbar() {
               type="button"
               onClick={() => setBellOpen((v) => !v)}
               className="relative rounded-xl p-2 text-slate-600 hover:bg-slate-100"
-              aria-label={`Notifications${feed.length ? `, ${feed.length} unread` : ''}`}
+              aria-label={notificationsLabel}
             >
               <Bell size={19} />
               {feed.length > 0 && (

@@ -40,7 +40,12 @@ async function postTransaction({
   const User = mongoose.model('User');
   const Transaction = mongoose.model('Transaction');
 
-  if (!(amount > 0)) throw new ApiError(400, 'Transaction amount must be positive');
+  // Number.isFinite rather than `amount <= 0`: a NaN amount must be rejected,
+  // and every comparison against NaN is false, so `<= 0` would let it pass
+  // straight into the ledger. This also rules out Infinity.
+  if (!Number.isFinite(amount) || amount <= 0) {
+    throw new ApiError(400, 'Transaction amount must be a positive number');
+  }
 
   const isDebit = DEBIT_TYPES.has(type);
   const delta = isDebit ? -amount : amount;

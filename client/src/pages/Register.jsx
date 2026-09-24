@@ -59,16 +59,37 @@ export default function Register() {
     );
   };
 
+  /** Case-insensitive duplicate check, so a list cannot hold the same skill
+   *  twice - which also keeps the name usable as a stable React key. */
+  const alreadyListed = (list, name) =>
+    list.some((s) => s.name.trim().toLowerCase() === name.trim().toLowerCase());
+
   const addOffer = () => {
-    if (!offerDraft.name.trim()) return;
-    setOffered([...offered, { ...offerDraft, name: offerDraft.name.trim() }]);
+    const name = offerDraft.name.trim();
+    if (!name || alreadyListed(offered, name)) {
+      setOfferDraft({ ...offerDraft, name: '' });
+      return;
+    }
+    setOffered([...offered, { ...offerDraft, name }]);
     setOfferDraft({ ...offerDraft, name: '' });
   };
 
   const addNeed = () => {
-    if (!needDraft.name.trim()) return;
-    setNeeded([...needed, { ...needDraft, name: needDraft.name.trim() }]);
+    const name = needDraft.name.trim();
+    if (!name || alreadyListed(needed, name)) {
+      setNeedDraft({ ...needDraft, name: '' });
+      return;
+    }
+    setNeeded([...needed, { ...needDraft, name }]);
     setNeedDraft({ ...needDraft, name: '' });
+  };
+
+  /** Enter adds the skill. Written as a statement body rather than a comma
+   *  expression so nothing reads the return value of a void function. */
+  const addOnEnter = (e, add) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    add();
   };
 
   const goToStepTwo = (e) => {
@@ -236,7 +257,7 @@ export default function Register() {
 
                 <div className="flex flex-wrap gap-2">
                   {offered.map((s, i) => (
-                    <Chip key={`${s.name}-${i}`} tone="brand">
+                    <Chip key={s.name} tone="brand">
                       {s.name}
                       <button type="button" onClick={() => setOffered(offered.filter((_, j) => j !== i))}>
                         <X size={12} />
@@ -251,7 +272,7 @@ export default function Register() {
                     placeholder="e.g. React"
                     value={offerDraft.name}
                     onChange={(e) => setOfferDraft({ ...offerDraft, name: e.target.value })}
-                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addOffer())}
+                    onKeyDown={(e) => addOnEnter(e, addOffer)}
                   />
                   <select
                     className="input sm:w-36"
@@ -277,7 +298,7 @@ export default function Register() {
 
                 <div className="flex flex-wrap gap-2">
                   {needed.map((s, i) => (
-                    <Chip key={`${s.name}-${i}`} tone="amber">
+                    <Chip key={s.name} tone="amber">
                       {s.name}
                       <button type="button" onClick={() => setNeeded(needed.filter((_, j) => j !== i))}>
                         <X size={12} />
@@ -292,7 +313,7 @@ export default function Register() {
                     placeholder="e.g. Guitar"
                     value={needDraft.name}
                     onChange={(e) => setNeedDraft({ ...needDraft, name: e.target.value })}
-                    onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addNeed())}
+                    onKeyDown={(e) => addOnEnter(e, addNeed)}
                   />
                   <select
                     className="input sm:w-36"

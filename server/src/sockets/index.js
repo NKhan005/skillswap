@@ -49,6 +49,29 @@ function initSocketServer(httpServer) {
     }
   });
 
+  /**
+   * Wrap an event handler so every one reports failures the same way: a
+   * chat_error to the sender plus a negative acknowledgement. Keeping this in
+   * one place is what stops each handler carrying its own try/catch.
+   */
+  const handle = (socket, fn) => async (payload = {}, ack) => {
+    try {
+      const result = await fn(payload, socket);
+      if (typeof ack === 'function') ack({ ok: true, ...(result || {}) });
+    } catch (err) {
+      socket.emit('chat_error', { message: err.message });
+      if (typeof ack === 'function') ack({ ok: false, error: err.message });
+    }
+  };
+
+  /** Load a swap and confirm this socket's user belongs to it. */
+  const authorizedSwap = async (swapId, userId) => {
+    const swap = await SwapRequest.findById(swapId).select('requester provider');
+    if (!swap) throw new Error('Swap not found');
+    if (!swap.involves(userId)) throw new Error('You are not part of this swap');
+    return swap;
+  };
+
   io.on('connection', (socket) => {
     const { id: userId, name } = socket.user;
     socket.join(`user:${userId}`);
@@ -57,11 +80,10 @@ function initSocketServer(httpServer) {
     socket.emit('connected', { userId, socketId: socket.id });
 
     /** join_room - enter one swap's chat thread. */
-    socket.on('join_room', async ({ swapId } = {}, ack) => {
-      try {
-        const swap = await SwapRequest.findById(swapId).select('requester provider');
-        if (!swap) throw new Error('Swap not found');
-        if (!swap.involves(userId)) throw new Error('You are not part of this swap');
+    socket.on(
+      'join_room',
+      handle(socket, async ({ swapId }) => {
+        await authorizedSwap(swapId, userId);
 
         const room = `swap:${swapId}`;
         socket.join(room);
@@ -75,12 +97,9 @@ function initSocketServer(httpServer) {
         socket.emit('room_joined', { room, swapId, history });
         socket.to(room).emit('user_joined', { userId, name });
 
-        if (typeof ack === 'function') ack({ ok: true, room, count: history.length });
-      } catch (err) {
-        socket.emit('chat_error', { message: err.message });
-        if (typeof ack === 'function') ack({ ok: false, error: err.message });
-      }
-    });
+        return { room, count: history.length };
+      })
+    );
 
     /** leave_room */
     socket.on('leave_room', ({ swapId } = {}) => {
@@ -90,14 +109,12 @@ function initSocketServer(httpServer) {
     });
 
     /** send_message - persist, then fan out to the room. */
-    socket.on('send_message', async ({ swapId, body } = {}, ack) => {
-      try {
+    socket.on(
+      'send_message',
+      handle(socket, async ({ swapId, body }) => {
         if (!body || !body.trim()) throw new Error('Message body is required');
 
-        const swap = await SwapRequest.findById(swapId).select('requester provider');
-        if (!swap) throw new Error('Swap not found');
-        if (!swap.involves(userId)) throw new Error('You are not part of this swap');
-
+        const swap = await authorizedSwap(swapId, userId);
         const recipient = swap.counterpartOf(userId);
 
         const message = await Message.create({
@@ -120,12 +137,9 @@ function initSocketServer(httpServer) {
           preview: payload.body.slice(0, 80),
         });
 
-        if (typeof ack === 'function') ack({ ok: true, message: payload });
-      } catch (err) {
-        socket.emit('chat_error', { message: err.message });
-        if (typeof ack === 'function') ack({ ok: false, error: err.message });
-      }
-    });
+        return { message: payload };
+      })
+    );
 
     /** typing indicators */
     socket.on('typing', ({ swapId } = {}) => {
