@@ -1,0 +1,12 @@
+# Global git config for the Jenkins container.
+#
+# The repository is bind-mounted from the host, so its files are owned by a
+# different uid than the `jenkins` user. Git refuses to operate on such a
+# repository ("detected dubious ownership") unless it is marked safe, and it
+# only honours safe.directory from system or global config - which is why
+# this is pointed at by GIT_CONFIG_GLOBAL rather than written into
+# /var/jenkins_home, a volume that would shadow anything baked into the image.
+
+[safe]
+	directory = /workspace/skillswap
+	directory = /workspace/skillswap/.git

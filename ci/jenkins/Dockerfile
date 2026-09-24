@@ -24,8 +24,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
        https://download.docker.com/linux/debian $(lsb_release -cs) stable" \
        > /etc/apt/sources.list.d/docker.list \
   && apt-get update \
-  && apt-get install -y --no-install-recommends docker-ce-cli docker-compose-plugin \
+  && apt-get install -y --no-install-recommends \
+       docker-ce-cli docker-compose-plugin docker-buildx-plugin \
   && rm -rf /var/lib/apt/lists/*
+# buildx is not optional: the pipeline sets DOCKER_BUILDKIT=1, and without the
+# plugin `docker build` fails with "BuildKit is enabled but the buildx
+# component is missing or broken".
 
 # Node 20, matching the runtime the server targets.
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
@@ -44,6 +48,7 @@ RUN jenkins-plugin-cli --plugin-file /usr/share/jenkins/ref/plugins.txt
 # the first. Compose bind-mounts the real file over this one, which also
 # means editing the config needs no image rebuild.
 COPY jenkins.yaml /var/jenkins_conf/jenkins.yaml
+COPY gitconfig /var/jenkins_conf/gitconfig
 RUN chown -R jenkins:jenkins /var/jenkins_conf
 
 USER jenkins
@@ -51,4 +56,5 @@ USER jenkins
 # Skip the setup wizard - the admin user, tools, credentials and the job all
 # come from the Configuration as Code file instead.
 ENV JAVA_OPTS="-Djenkins.install.runSetupWizard=false" \
-    CASC_JENKINS_CONFIG="/var/jenkins_conf/jenkins.yaml"
+    CASC_JENKINS_CONFIG="/var/jenkins_conf/jenkins.yaml" \
+    GIT_CONFIG_GLOBAL="/var/jenkins_conf/gitconfig"
