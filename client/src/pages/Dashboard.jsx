@@ -17,41 +17,50 @@ import { Avatar, Chip, EmptyState, Spinner, StatTile, TrustBadge } from '../comp
 import MatchCard from '../components/MatchCard';
 import SwapRequestModal from '../components/SwapRequestModal';
 
-export default function Dashboard() {
-  const { user, refreshUser } = useAuth();
-  const { notify } = useNotifications();
-
-  const [matches, setMatches] = useState([]);
-  const [swaps, setSwaps] = useState([]);
-  const [challenges, setChallenges] = useState([]);
+/**
+ * Everything the dashboard shows, fetched in one round. Settled rather than
+ * all-or-nothing: one failing endpoint should dim its own panel, not blank
+ * the whole page.
+ */
+function useDashboardData() {
+  const [data, setData] = useState({ matches: [], swaps: [], challenges: [] });
   const [loading, setLoading] = useState(true);
-  const [modalTarget, setModalTarget] = useState(null);
-  const [prefill, setPrefill] = useState({});
 
   useEffect(() => {
     let cancelled = false;
 
     (async () => {
-      try {
-        // One round of fetches; a failure in any one should not blank the page.
-        const [m, s, c] = await Promise.allSettled([
-          endpoints.matching.direct({ limit: 6 }),
-          endpoints.swaps.list(),
-          endpoints.challenges.list(),
-        ]);
-        if (cancelled) return;
-        if (m.status === 'fulfilled') setMatches(m.value.data.matches);
-        if (s.status === 'fulfilled') setSwaps(s.value.data.swaps);
-        if (c.status === 'fulfilled') setChallenges(c.value.data.challenges);
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+      const [m, s, c] = await Promise.allSettled([
+        endpoints.matching.direct({ limit: 6 }),
+        endpoints.swaps.list(),
+        endpoints.challenges.list(),
+      ]);
+
+      if (cancelled) return;
+
+      setData({
+        matches: m.status === 'fulfilled' ? m.value.data.matches : [],
+        swaps: s.status === 'fulfilled' ? s.value.data.swaps : [],
+        challenges: c.status === 'fulfilled' ? c.value.data.challenges : [],
+      });
+      setLoading(false);
     })();
 
     return () => {
       cancelled = true;
     };
   }, []);
+
+  return { ...data, loading, setSwaps: (fn) => setData((d) => ({ ...d, swaps: fn(d.swaps) })) };
+}
+
+export default function Dashboard() {
+  const { user, refreshUser } = useAuth();
+  const { notify } = useNotifications();
+
+  const { matches, swaps, challenges, loading, setSwaps } = useDashboardData();
+  const [modalTarget, setModalTarget] = useState(null);
+  const [prefill, setPrefill] = useState({});
 
   const openRequest = ({ providerId, skillRequested, skillOffered, type }) => {
     const match = matches.find((m) => m.user._id === providerId);
@@ -73,9 +82,10 @@ export default function Dashboard() {
   const active = swaps.filter((s) => s.status === 'accepted');
   const completed = swaps.filter((s) => s.status === 'completed');
   const mutualCount = matches.filter((m) => m.matchType === 'mutual').length;
+  const matchWord = mutualCount === 1 ? 'match' : 'matches';
   const greeting =
     mutualCount > 0
-      ? `${mutualCount} mutual ${mutualCount === 1 ? 'match' : 'matches'} waiting for you.`
+      ? `${mutualCount} mutual ${matchWord} waiting for you.`
       : 'Add more skills to your profile to sharpen your matches.';
   const joinedChallenges = challenges.filter((c) => c.joined && !c.completed);
 

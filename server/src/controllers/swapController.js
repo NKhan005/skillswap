@@ -30,52 +30,70 @@ async function systemMessage(swap, body) {
   return msg;
 }
 
-/** POST /api/swaps - feature 2 + 6: open a direct or credit-settled request. */
-const createSwap = asyncHandler(async (req, res) => {
-  const { providerId, skillRequested, skillOffered, hours = 1, message, type, scheduledAt, meetingLocation } =
-    req.body;
+/** Does this member list `skillName` among the skills they teach? */
+function teaches(member, skillName) {
+  return (member.skillsOffered || []).some((s) => normalize(s.name) === normalize(skillName));
+}
 
-  if (String(providerId) === String(req.user._id)) {
+/** The provider must exist, not be the requester, and teach what is asked. */
+async function resolveProvider(requester, providerId, skillRequested) {
+  if (String(providerId) === String(requester._id)) {
     throw ApiError.badRequest('You cannot swap with yourself');
   }
 
   const provider = await User.findById(providerId);
   if (!provider) throw ApiError.notFound('That member no longer exists');
 
-  // The provider must actually teach the requested skill.
-  const teaches = (provider.skillsOffered || []).some(
-    (s) => normalize(s.name) === normalize(skillRequested)
-  );
-  if (!teaches) {
+  if (!teaches(provider, skillRequested)) {
     throw ApiError.badRequest(`${provider.name} does not list "${skillRequested}" as a skill they teach`);
   }
 
-  const swapType = type === 'credit' ? 'credit' : 'direct';
-  const creditCost = swapType === 'credit' ? Number(hours) * env.CREDITS_PER_HOUR : 0;
+  return provider;
+}
 
-  if (swapType === 'credit' && req.user.wallet.balance < creditCost) {
-    throw ApiError.badRequest(
-      `This swap costs ${creditCost} credits and your balance is ${req.user.wallet.balance}`
-    );
-  }
+/**
+ * Settle how the swap pays: a direct swap needs a skill taught back, a credit
+ * swap needs the balance to cover it. Returns the priced terms.
+ */
+function priceSwap(requester, { type, hours, skillOffered }) {
+  const swapType = type === 'credit' ? 'credit' : 'direct';
 
   if (swapType === 'direct') {
-    const canTeachBack = (req.user.skillsOffered || []).some(
-      (s) => normalize(s.name) === normalize(skillOffered)
-    );
-    if (!canTeachBack) {
+    if (!teaches(requester, skillOffered)) {
       throw ApiError.badRequest(`Add "${skillOffered}" to your offered skills before offering it in a swap`);
     }
+    return { swapType, creditCost: 0 };
   }
 
-  // One live request per pair per skill keeps threads meaningful.
+  const creditCost = Number(hours) * env.CREDITS_PER_HOUR;
+  if (requester.wallet.balance < creditCost) {
+    throw ApiError.badRequest(
+      `This swap costs ${creditCost} credits and your balance is ${requester.wallet.balance}`
+    );
+  }
+
+  return { swapType, creditCost };
+}
+
+/** One live request per pair per skill keeps threads meaningful. */
+async function rejectDuplicate(requesterId, providerId, skillRequested) {
   const duplicate = await SwapRequest.findOne({
-    requester: req.user._id,
+    requester: requesterId,
     provider: providerId,
     skillRequested,
     status: { $in: ['pending', 'accepted'] },
   });
   if (duplicate) throw ApiError.conflict('You already have an open request for this skill');
+}
+
+/** POST /api/swaps - feature 2 + 6: open a direct or credit-settled request. */
+const createSwap = asyncHandler(async (req, res) => {
+  const { providerId, skillRequested, skillOffered, hours = 1, message, type, scheduledAt, meetingLocation } =
+    req.body;
+
+  await resolveProvider(req.user, providerId, skillRequested);
+  const { swapType, creditCost } = priceSwap(req.user, { type, hours, skillOffered });
+  await rejectDuplicate(req.user._id, providerId, skillRequested);
 
   const swap = await SwapRequest.create({
     requester: req.user._id,

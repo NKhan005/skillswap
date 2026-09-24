@@ -118,6 +118,41 @@ export default function Explore() {
     await refreshUser();
   };
 
+  // The feed has three states. Named here so the markup below stays flat.
+  let resultsView;
+  if (loading) {
+    resultsView = <Spinner label="Finding people" />;
+  } else if (results.length === 0) {
+    resultsView = (
+      <EmptyState
+        icon={Sparkles}
+        title="Nothing here yet"
+        description={
+          mode === 'nearby'
+            ? `No one within ${radius} km matches those filters. Try a wider radius.`
+            : 'Try clearing the filters, or add more skills to your profile.'
+        }
+      />
+    );
+  } else {
+    resultsView = (
+      <>
+        <div className="mb-3 flex items-center gap-2 text-sm text-slate-500">
+          <span>{results.length} results</span>
+          {mode === 'matches' && (
+            <Chip tone="mint">{results.filter((r) => r.matchType === 'mutual').length} mutual</Chip>
+          )}
+        </div>
+
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+          {results.map((m) => (
+            <MatchCard key={m.user._id} match={m} onRequest={openRequest} />
+          ))}
+        </div>
+      </>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -221,36 +256,7 @@ export default function Explore() {
       )}
 
       {/* Results */}
-      <div className="mt-6">
-        {loading ? (
-          <Spinner label="Finding people" />
-        ) : results.length === 0 ? (
-          <EmptyState
-            icon={Sparkles}
-            title="Nothing here yet"
-            description={
-              mode === 'nearby'
-                ? `No one within ${radius} km matches those filters. Try a wider radius.`
-                : 'Try clearing the filters, or add more skills to your profile.'
-            }
-          />
-        ) : (
-          <>
-            <div className="mb-3 flex items-center gap-2 text-sm text-slate-500">
-              <span>{results.length} results</span>
-              {mode === 'matches' && (
-                <Chip tone="mint">{results.filter((r) => r.matchType === 'mutual').length} mutual</Chip>
-              )}
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {results.map((m) => (
-                <MatchCard key={m.user._id} match={m} onRequest={openRequest} />
-              ))}
-            </div>
-          </>
-        )}
-      </div>
+      <div className="mt-6">{resultsView}</div>
 
       <SwapRequestModal
         open={Boolean(modalTarget)}

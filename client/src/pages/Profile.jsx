@@ -32,6 +32,81 @@ const CATEGORIES = [
 ];
 const LEVELS = ['beginner', 'intermediate', 'advanced', 'expert'];
 
+/** The verification links a member has filled in, in display order. */
+function verificationLinks(v = {}) {
+  return [
+    v.githubUrl && { href: v.githubUrl, label: 'GitHub', Icon: GitBranch },
+    v.leetcodeUrl && { href: v.leetcodeUrl, label: 'LeetCode', Icon: Code2 },
+    v.portfolioUrl && { href: v.portfolioUrl, label: 'Portfolio', Icon: Link2 },
+    v.linkedinUrl && { href: v.linkedinUrl, label: 'LinkedIn', Icon: Briefcase },
+  ].filter(Boolean);
+}
+
+/** Feature 9 - proof of work, shown on someone else's profile. */
+function VerificationSection({ verification }) {
+  const links = verificationLinks(verification);
+  const certifications = verification.certifications || [];
+
+  if (links.length === 0) return null;
+
+  return (
+    <section className="card mt-4 p-5">
+      <h2 className="mb-3 font-semibold text-slate-900">Verification</h2>
+      <div className="flex flex-wrap gap-2">
+        {links.map(({ href, label, Icon }) => (
+          <a
+            key={label}
+            href={href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-secondary text-sm"
+          >
+            <Icon size={15} />
+            {label}
+          </a>
+        ))}
+      </div>
+
+      {certifications.length > 0 && (
+        <ul className="mt-4 grid gap-2">
+          {certifications.map((c) => (
+            <li key={c._id || c.title} className="flex items-center gap-2 text-sm text-slate-600">
+              <Award size={15} className="text-amber-500" />
+              <span className="font-medium text-slate-800">{c.title}</span>
+              {c.issuer && <span className="text-slate-400">- {c.issuer}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+/** The reviews a member has received. */
+function ReviewList({ reviews }) {
+  if (reviews.length === 0) {
+    return <p className="py-4 text-center text-sm text-slate-400">No reviews yet.</p>;
+  }
+
+  return (
+    <ul className="grid gap-4">
+      {reviews.map((r) => (
+        <li key={r._id} className="border-b border-slate-100 pb-4 last:border-0 last:pb-0">
+          <div className="flex items-center gap-2">
+            <Avatar name={r.reviewer?.name || 'Member'} size={28} />
+            <span className="text-sm font-medium text-slate-800">{r.reviewer?.name}</span>
+            <Stars rating={r.rating} size={13} />
+            <span className="ml-auto text-xs text-slate-400">
+              {new Date(r.createdAt).toLocaleDateString()}
+            </span>
+          </div>
+          {r.comment && <p className="mt-2 text-sm text-slate-600">{r.comment}</p>}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 /** Someone else's profile: read-only, with a request button. */
 function PublicProfile({ id }) {
   const { refreshUser } = useAuth();
@@ -57,12 +132,6 @@ function PublicProfile({ id }) {
 
   const { user, reviews } = data;
   const v = user.verification || {};
-  const links = [
-    v.githubUrl && { href: v.githubUrl, label: 'GitHub', Icon: GitBranch },
-    v.leetcodeUrl && { href: v.leetcodeUrl, label: 'LeetCode', Icon: Code2 },
-    v.portfolioUrl && { href: v.portfolioUrl, label: 'Portfolio', Icon: Link2 },
-    v.linkedinUrl && { href: v.linkedinUrl, label: 'LinkedIn', Icon: Briefcase },
-  ].filter(Boolean);
 
   const submitSwap = async (payload) => {
     const { data: res } = await endpoints.swaps.create(payload);
@@ -116,36 +185,7 @@ function PublicProfile({ id }) {
         </div>
       </div>
 
-      {links.length > 0 && (
-        <section className="card mt-4 p-5">
-          <h2 className="mb-3 font-semibold text-slate-900">Verification</h2>
-          <div className="flex flex-wrap gap-2">
-            {links.map(({ href, label, Icon }) => (
-              <a
-                key={label}
-                href={href}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="btn-secondary text-sm"
-              >
-                <Icon size={15} />
-                {label}
-              </a>
-            ))}
-          </div>
-          {(v.certifications || []).length > 0 && (
-            <ul className="mt-4 grid gap-2">
-              {v.certifications.map((c) => (
-                <li key={c._id || c.title} className="flex items-center gap-2 text-sm text-slate-600">
-                  <Award size={15} className="text-amber-500" />
-                  <span className="font-medium text-slate-800">{c.title}</span>
-                  {c.issuer && <span className="text-slate-400">- {c.issuer}</span>}
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
-      )}
+      <VerificationSection verification={v} />
 
       <div className="mt-4 grid gap-4 sm:grid-cols-2">
         <section className="card p-5">
@@ -176,25 +216,7 @@ function PublicProfile({ id }) {
 
       <section className="card mt-4 p-5">
         <h2 className="mb-3 font-semibold text-slate-900">Reviews</h2>
-        {reviews.length === 0 ? (
-          <p className="py-4 text-center text-sm text-slate-400">No reviews yet.</p>
-        ) : (
-          <ul className="grid gap-4">
-            {reviews.map((r) => (
-              <li key={r._id} className="border-b border-slate-100 pb-4 last:border-0 last:pb-0">
-                <div className="flex items-center gap-2">
-                  <Avatar name={r.reviewer?.name || 'Member'} size={28} />
-                  <span className="text-sm font-medium text-slate-800">{r.reviewer?.name}</span>
-                  <Stars rating={r.rating} size={13} />
-                  <span className="ml-auto text-xs text-slate-400">
-                    {new Date(r.createdAt).toLocaleDateString()}
-                  </span>
-                </div>
-                {r.comment && <p className="mt-2 text-sm text-slate-600">{r.comment}</p>}
-              </li>
-            ))}
-          </ul>
-        )}
+        <ReviewList reviews={reviews} />
       </section>
 
       <SwapRequestModal

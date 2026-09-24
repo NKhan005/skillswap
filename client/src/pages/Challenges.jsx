@@ -21,6 +21,33 @@ const METRIC_LABEL = {
   hours_taught: 'hours taught',
 };
 
+/** A challenge's trailing control: finished, in progress, or joinable. */
+function ChallengeAction({ challenge, joining, onJoin }) {
+  if (challenge.completed) {
+    return (
+      <Chip tone="mint">
+        <Check size={12} />
+        Complete
+      </Chip>
+    );
+  }
+
+  if (challenge.joined) {
+    return <Chip tone="sky">In progress</Chip>;
+  }
+
+  return (
+    <button
+      type="button"
+      disabled={joining}
+      onClick={() => onJoin(challenge)}
+      className="btn-primary px-3 py-1.5 text-xs"
+    >
+      {joining ? 'Joining...' : 'Join'}
+    </button>
+  );
+}
+
 export default function Challenges() {
   const { refreshUser } = useAuth();
   const { notify } = useNotifications();
@@ -124,23 +151,7 @@ export default function Challenges() {
                     )}
 
                     <div className="ml-auto">
-                      {c.completed ? (
-                        <Chip tone="mint">
-                          <Check size={12} />
-                          Complete
-                        </Chip>
-                      ) : c.joined ? (
-                        <Chip tone="sky">In progress</Chip>
-                      ) : (
-                        <button
-                          type="button"
-                          disabled={joining === c._id}
-                          onClick={() => join(c)}
-                          className="btn-primary px-3 py-1.5 text-xs"
-                        >
-                          {joining === c._id ? 'Joining...' : 'Join'}
-                        </button>
-                      )}
+                      <ChallengeAction challenge={c} joining={joining === c._id} onJoin={join} />
                     </div>
                   </div>
                 </article>

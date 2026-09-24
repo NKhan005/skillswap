@@ -6,6 +6,39 @@ import { connectSocket, emit, on } from '../api/socket';
 import { useAuth } from '../context/AuthContext';
 import { Avatar, Chip, EmptyState, Spinner } from '../components/ui';
 
+/** A system line: swap lifecycle events narrated inside the thread. */
+function SystemLine({ body }) {
+  return (
+    <div className="flex justify-center">
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-500">
+        <Info size={11} />
+        {body}
+      </span>
+    </div>
+  );
+}
+
+/** One chat bubble, sided by who sent it. */
+function MessageBubble({ message, mine }) {
+  return (
+    <div className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
+      <div
+        className={`animate-fade-up max-w-[75%] rounded-2xl px-3.5 py-2.5 ${
+          mine ? 'rounded-br-md bg-brand-600 text-white' : 'rounded-bl-md bg-slate-100 text-slate-800'
+        }`}
+      >
+        <p className="text-sm whitespace-pre-wrap">{message.body}</p>
+        <p className={`mt-1 text-[10px] ${mine ? 'text-brand-200' : 'text-slate-400'}`}>
+          {new Date(message.createdAt).toLocaleTimeString([], {
+            hour: '2-digit',
+            minute: '2-digit',
+          })}
+        </p>
+      </div>
+    </div>
+  );
+}
+
 /** Conversation list on the left, live thread on the right (feature 8). */
 export default function Messages() {
   const { swapId } = useParams();
@@ -125,6 +158,30 @@ export default function Messages() {
     }
   };
 
+  // The thread has three states; naming it keeps the markup below flat.
+  let threadView;
+  if (threadLoading) {
+    threadView = <Spinner label="Loading messages" />;
+  } else if (messages.length === 0) {
+    threadView = (
+      <p className="py-10 text-center text-sm text-slate-400">
+        No messages yet. Say hello and agree a time.
+      </p>
+    );
+  } else {
+    threadView = messages.map((m) =>
+      m.kind === 'system' ? (
+        <SystemLine key={m._id} body={m.body} />
+      ) : (
+        <MessageBubble
+          key={m._id}
+          message={m}
+          mine={String(m.sender?._id || m.sender) === String(user.id)}
+        />
+      )
+    );
+  }
+
   if (loading) return <Spinner label="Loading conversations" />;
 
   return (
@@ -217,49 +274,7 @@ export default function Messages() {
               </header>
 
               <div className="scroll-slim flex-1 space-y-3 overflow-y-auto px-4 py-4">
-                {threadLoading ? (
-                  <Spinner label="Loading messages" />
-                ) : messages.length === 0 ? (
-                  <p className="py-10 text-center text-sm text-slate-400">
-                    No messages yet. Say hello and agree a time.
-                  </p>
-                ) : (
-                  messages.map((m) => {
-                    const senderId = m.sender?._id || m.sender;
-                    const mine = String(senderId) === String(user.id);
-
-                    if (m.kind === 'system') {
-                      return (
-                        <div key={m._id} className="flex justify-center">
-                          <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-100 px-3 py-1 text-xs text-slate-500">
-                            <Info size={11} />
-                            {m.body}
-                          </span>
-                        </div>
-                      );
-                    }
-
-                    return (
-                      <div key={m._id} className={`flex ${mine ? 'justify-end' : 'justify-start'}`}>
-                        <div
-                          className={`animate-fade-up max-w-[75%] rounded-2xl px-3.5 py-2.5 ${
-                            mine
-                              ? 'rounded-br-md bg-brand-600 text-white'
-                              : 'rounded-bl-md bg-slate-100 text-slate-800'
-                          }`}
-                        >
-                          <p className="text-sm whitespace-pre-wrap">{m.body}</p>
-                          <p className={`mt-1 text-[10px] ${mine ? 'text-brand-200' : 'text-slate-400'}`}>
-                            {new Date(m.createdAt).toLocaleTimeString([], {
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })}
-                          </p>
-                        </div>
-                      </div>
-                    );
-                  })
-                )}
+                {threadView}
 
                 {typingName && (
                   <p className="text-xs text-slate-400 italic">{typingName} is typing...</p>
