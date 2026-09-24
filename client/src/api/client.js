@@ -7,10 +7,20 @@ const TOKEN_KEY = 'skillswap.token';
  * Nginx reverse proxy in the container both forward /api to the server, so no
  * build-time host is baked into the bundle.
  */
+const API_URL = import.meta.env.VITE_API_URL || '';
+
+/**
+ * A hosted API on a free tier sleeps when idle and can take the better part
+ * of a minute to wake, so the first request after a quiet spell needs room.
+ * Same-origin means the dev proxy or the Nginx container, which is local and
+ * should fail fast instead.
+ */
+const DEFAULT_TIMEOUT = API_URL ? 60000 : 20000;
+
 export const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || '',
+  baseURL: API_URL,
   headers: { 'Content-Type': 'application/json' },
-  timeout: 20000,
+  timeout: Number(import.meta.env.VITE_API_TIMEOUT) || DEFAULT_TIMEOUT,
 });
 
 export const getToken = () => localStorage.getItem(TOKEN_KEY);

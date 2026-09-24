@@ -1,0 +1,75 @@
+# Render blueprint for SkillSwap.
+#
+# One web service serves both halves: Express handles /api and /socket.io, and
+# serves the built React client for everything else. That keeps the browser on
+# a single origin, which means no CORS to configure and Socket.io connecting
+# to the same host that served the page - the same shape as the Nginx
+# container locally, so development and production behave alike.
+#
+# Socket.io needs a long-lived process, which is why this is a web service
+# rather than a static site plus functions.
+#
+# To deploy: Render dashboard -> New -> Blueprint -> pick this repository.
+# Render reads this file and asks for the values marked `sync: false`.
+#
+# The database is MongoDB Atlas (free M0). Render has no managed MongoDB, and
+# its free plan has no persistent disk, so the database lives outside.
+
+services:
+  - type: web
+    name: skillswap
+    runtime: node
+    plan: free
+    region: oregon
+
+    # Build both halves, then drop the client's dev dependencies. The server
+    # keeps only production dependencies; the client's are build-time only.
+    buildCommand: |
+      npm --prefix server ci --omit=dev
+      npm --prefix client ci
+      npm --prefix client run build
+      rm -rf client/node_modules
+
+    startCommand: node server/src/index.js
+
+    # /api/health returns 503 until Mongo is connected, so a half-started
+    # instance is never marked healthy or sent traffic.
+    healthCheckPath: /api/health
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      # Render sets PORT itself and the server reads it; this is the fallback.
+      - key: PORT
+        value: 10000
+
+      # Set in the dashboard - this is a secret.
+      #   mongodb+srv://USER:PASS@cluster.xxxxx.mongodb.net/skillswap
+      - key: MONGO_URI
+        sync: false
+
+      - key: JWT_SECRET
+        generateValue: true
+      - key: JWT_EXPIRES_IN
+        value: 7d
+
+      # Same origin, so CORS never comes into play. Kept pointing at the
+      # service's own URL so the value is honest rather than a wildcard.
+      - key: CLIENT_ORIGIN
+        fromService:
+          type: web
+          name: skillswap
+          property: host
+
+      # Atlas resolves through SRV records; public resolvers avoid the
+      # querySrv timeouts some networks produce.
+      - key: DNS_SERVERS
+        value: 8.8.8.8,1.1.1.1
+
+      - key: CREDITS_PER_HOUR
+        value: 1
+      - key: SIGNUP_BONUS_CREDITS
+        value: 3
+      - key: LOG_LEVEL
+        value: info

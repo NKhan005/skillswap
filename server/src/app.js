@@ -1,5 +1,8 @@
 'use strict';
 
+const fs = require('node:fs');
+const path = require('node:path');
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
@@ -9,6 +12,7 @@ const mongoose = require('mongoose');
 
 const env = require('./config/env');
 const routes = require('./routes');
+const logger = require('./utils/logger');
 const { notFound, errorHandler } = require('./middleware/errorHandler');
 
 function createApp() {
@@ -61,20 +65,64 @@ function createApp() {
     });
   });
 
-  app.get('/', (_req, res) => {
-    res.json({
-      name: 'SkillSwap API',
-      tagline: 'Exchange Skills, Not Money',
-      docs: '/api/health',
-    });
-  });
-
   app.use('/api', routes);
+
+  serveClientBuild(app);
 
   app.use(notFound);
   app.use(errorHandler);
 
   return app;
+}
+
+/**
+ * Serve the built client from the API process, when a build is present.
+ *
+ * This is what makes a single-service deployment possible: the browser talks
+ * to one origin, so there is no CORS to configure and Socket.io connects to
+ * the same host that served the page. Locally the directory does not exist
+ * (Vite's dev server handles the client), so this is skipped and the API
+ * behaves exactly as before.
+ */
+function serveClientBuild(app) {
+  const dist = process.env.CLIENT_DIST_PATH || path.join(__dirname, '..', '..', 'client', 'dist');
+
+  if (!fs.existsSync(path.join(dist, 'index.html'))) {
+    logger.info('No client build found; serving the API only');
+
+    // Without a build, the root is the API's own banner rather than a 404.
+    app.get('/', (_req, res) => {
+      res.json({
+        name: 'SkillSwap API',
+        tagline: 'Exchange Skills, Not Money',
+        health: '/api/health',
+      });
+    });
+    return;
+  }
+
+  logger.info(`Serving the client build from ${dist}`);
+
+  // Hashed filenames, so these can be cached hard. index.html must not be.
+  app.use(
+    express.static(dist, {
+      index: false,
+      setHeaders(res, filePath) {
+        if (filePath.endsWith('index.html')) {
+          res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+        } else if (filePath.includes(`${path.sep}assets${path.sep}`)) {
+          res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+        }
+      },
+    })
+  );
+
+  // Client-side routing: anything that is not the API or a real file is the
+  // SPA shell. /api is excluded so a wrong endpoint still returns a JSON 404
+  // rather than a page of HTML.
+  app.get(/^\/(?!api\/).*/, (_req, res) => {
+    res.sendFile(path.join(dist, 'index.html'));
+  });
 }
 
 module.exports = createApp;
