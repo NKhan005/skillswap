@@ -1,0 +1,85 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Install all dependencies",
+      "type": "shell",
+      "command": "npm run install:all",
+      "problemMatcher": []
+    },
+    {
+      // For machines without Docker or a system MongoDB. Downloads a real
+      // MongoDB on first run and serves it on 27018.
+      "label": "Dev MongoDB",
+      "type": "shell",
+      "command": "npm --prefix server run mongo:dev",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Seed the database",
+      "type": "shell",
+      "command": "npm run seed",
+      "problemMatcher": []
+    },
+    {
+      "label": "API server (dev)",
+      "type": "shell",
+      "command": "npm run dev:server",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Client (dev)",
+      "type": "shell",
+      "command": "npm run dev:client",
+      "isBackground": true,
+      "problemMatcher": []
+    },
+    {
+      "label": "Run tests",
+      "type": "shell",
+      "command": "npm test",
+      "group": { "kind": "test", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Run tests with coverage",
+      "type": "shell",
+      "command": "npm --prefix server run test:coverage",
+      "problemMatcher": []
+    },
+    {
+      "label": "Build client",
+      "type": "shell",
+      "command": "npm run build",
+      "group": { "kind": "build", "isDefault": true },
+      "problemMatcher": []
+    },
+    {
+      "label": "Docker: start the whole stack",
+      "type": "shell",
+      "command": "docker compose up -d --build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Docker: stop the stack",
+      "type": "shell",
+      "command": "docker compose down",
+      "problemMatcher": []
+    },
+    {
+      "label": "What can this machine run?",
+      "type": "shell",
+      "command": "bash ci/preflight.sh",
+      "problemMatcher": []
+    },
+    {
+      // The usual way to start working: database, API and client together.
+      "label": "Start everything (dev)",
+      "dependsOn": ["Dev MongoDB", "API server (dev)", "Client (dev)"],
+      "dependsOrder": "parallel",
+      "problemMatcher": []
+    }
+  ]
+}

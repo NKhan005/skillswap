@@ -1,0 +1,54 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      // Breakpoints in controllers, models and the socket handlers.
+      "name": "Debug API server",
+      "type": "node",
+      "request": "launch",
+      "program": "${workspaceFolder}/server/src/index.js",
+      "cwd": "${workspaceFolder}/server",
+      "envFile": "${workspaceFolder}/server/.env",
+      "skipFiles": ["<node_internals>/**", "**/node_modules/**"],
+      "console": "integratedTerminal"
+    },
+    {
+      // Runs the whole suite under the debugger, integration tests included.
+      // They start their own MongoDB, so nothing else needs to be running.
+      "name": "Debug all tests",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--test", "tests/"],
+      "cwd": "${workspaceFolder}/server",
+      "skipFiles": ["<node_internals>/**"],
+      "console": "integratedTerminal"
+    },
+    {
+      // Debug just the file that is open and focused.
+      "name": "Debug current test file",
+      "type": "node",
+      "request": "launch",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["--test", "${relativeFile}"],
+      "cwd": "${workspaceFolder}/server",
+      "skipFiles": ["<node_internals>/**"],
+      "console": "integratedTerminal"
+    },
+    {
+      // Attaches to the Vite dev server; start it first with the dev task.
+      "name": "Debug client in Chrome",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:5173",
+      "webRoot": "${workspaceFolder}/client/src"
+    }
+  ],
+  "compounds": [
+    {
+      // API and browser together, for tracing a request end to end.
+      "name": "Debug full stack",
+      "configurations": ["Debug API server", "Debug client in Chrome"]
+    }
+  ]
+}

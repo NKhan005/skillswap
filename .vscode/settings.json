@@ -1,0 +1,32 @@
+{
+  // Match .editorconfig, so files do not churn between machines.
+  "files.eol": "\n",
+  "files.insertFinalNewline": true,
+  "files.trimTrailingWhitespace": true,
+  "editor.tabSize": 2,
+
+  // Noise the explorer and search do not need to show.
+  "files.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/coverage": true,
+    "**/.devdata": true
+  },
+  "search.exclude": {
+    "**/node_modules": true,
+    "**/dist": true,
+    "**/coverage": true,
+    "**/package-lock.json": true
+  },
+
+  // Tailwind v4 keeps its theme in CSS, so the language server needs to know
+  // where to look, and the CSS validator needs to stop flagging its at-rules.
+  "tailwindCSS.experimental.configFile": "client/src/index.css",
+  "css.lint.unknownAtRules": "ignore",
+
+  "javascript.preferences.importModuleSpecifierEnding": "js",
+  "editor.formatOnSave": false,
+
+  // The test suites start their own MongoDB, so a run needs nothing else up.
+  "testing.automaticallyOpenTestResults": "neverOpen"
+}

@@ -20,7 +20,14 @@ npm-debug.log*
 logs/
 
 # editors / OS
-.vscode/
+# .vscode is committed deliberately: the extension recommendations, debug
+# configurations and tasks are project setup, useful to anyone who clones
+# this. Only genuinely personal files are excluded.
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/launch.json
+!.vscode/tasks.json
 .idea/
 .DS_Store
 Thumbs.db

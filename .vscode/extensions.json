@@ -1,0 +1,25 @@
+{
+  // Suggested when the folder is opened. Nothing here is required to build or
+  // run the project - they just make working on it less manual.
+  "recommendations": [
+    // Tailwind class completion and hover previews, including for v4's
+    // @theme and @utility directives.
+    "bradlc.vscode-tailwindcss",
+
+    // Formatting and linting, matching what the repository already uses.
+    "esbenp.prettier-vscode",
+    "editorconfig.editorconfig",
+
+    // Run the REST endpoints from a .http file instead of curl.
+    "humao.rest-client",
+
+    // MongoDB explorer, for looking at the seeded data directly.
+    "mongodb.mongodb-vscode",
+
+    // Docker and Compose: build, start and inspect the stack from the sidebar.
+    "ms-azuretools.vscode-docker",
+
+    // Syntax highlighting for the Jenkinsfile.
+    "ivory-lab.jenkinsfile-support"
+  ]
+}
