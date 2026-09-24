@@ -25,9 +25,11 @@ services:
     # Build both halves, then drop the client's dev dependencies. The server
     # keeps only production dependencies; the client's are build-time only.
     #
-    # `cd` rather than `npm --prefix`: with --prefix, the script still runs
-    # with the repository root as its working directory, so Vite resolves its
-    # project root to the wrong place and emits nothing useful.
+    # --include=dev on the client is essential. NODE_ENV is production here,
+    # and npm skips devDependencies whenever that is set - which silently
+    # leaves out Vite, the thing that does the building, and the build dies
+    # with "vite: not found". The server install wants the opposite, so the
+    # two lines deliberately disagree.
     #
     # The `test -f` is deliberate. Without it a missing client build produces
     # a perfectly green deploy that serves only the API - the server falls
@@ -36,7 +38,7 @@ services:
     buildCommand: |
       set -e
       cd server && npm ci --omit=dev && cd ..
-      cd client && npm ci && npm run build && cd ..
+      cd client && npm ci --include=dev && npm run build && cd ..
       test -f client/dist/index.html || { echo "FATAL: client build produced no dist/index.html"; exit 1; }
       echo "client build OK: $(ls client/dist/assets | tr '\n' ' ')"
       rm -rf client/node_modules
