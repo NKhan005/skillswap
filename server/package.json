@@ -11,7 +11,8 @@
     "test": "node --test tests/*.test.js",
     "lint": "echo \"no linter configured\" && exit 0",
     "mongo:dev": "node scripts/dev-mongo.js",
-    "test:unit": "node --test tests/trustScore.test.js tests/matching.test.js"
+    "test:unit": "node --test tests/trustScore.test.js tests/matching.test.js",
+    "test:coverage": "node -e \"require('fs').mkdirSync('coverage',{recursive:true})\" && node --test --experimental-test-coverage --test-reporter=lcov --test-reporter-destination=coverage/lcov.info --test-reporter=spec --test-reporter-destination=stdout tests/*.test.js && node scripts/lcov-paths.js"
   },
   "keywords": [
     "skillswap",

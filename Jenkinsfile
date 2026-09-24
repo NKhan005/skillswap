@@ -95,7 +95,10 @@ pipeline {
     stage('Test') {
       steps {
         dir('server') {
-          sh 'npm test'
+          // Coverage rather than a bare test run: SonarQube's quality gate
+          // judges coverage on new code, and with no lcov report every line
+          // counts as uncovered no matter how well tested it is.
+          sh 'npm run test:coverage'
         }
       }
     }
