@@ -11,13 +11,53 @@ set -uo pipefail
 GREEN=$'\033[32m'; RED=$'\033[31m'; YELLOW=$'\033[33m'; DIM=$'\033[2m'; OFF=$'\033[0m'
 ready=0; missing=0
 
-have() { command -v "$1" >/dev/null 2>&1; }
+# A tool installed while a shell was already open is not on that shell's
+# PATH, so fall back to the usual Windows install locations before calling
+# anything missing. Without this the script cries wolf right after an install.
+FALLBACK_DIRS="
+/c/Program Files/Docker/Docker/resources/bin
+/c/Program Files/GitHub CLI
+/c/Program Files/Kubernetes/Minikube
+/c/ProgramData/chocolatey/bin
+$HOME/AppData/Local/Microsoft/WindowsApps
+"
+
+resolve() {
+  local cmd="$1"
+  if command -v "$cmd" >/dev/null 2>&1; then
+    command -v "$cmd"
+    return 0
+  fi
+  local dir
+  while IFS= read -r dir; do
+    [ -n "$dir" ] || continue
+    # .exe first: Docker Desktop ships an extensionless `docker` shell wrapper
+    # next to docker.exe, and that wrapper only works when docker.exe is
+    # already on PATH - which is exactly the case this fallback exists for.
+    if [ -x "$dir/$cmd.exe" ]; then echo "$dir/$cmd.exe"; return 0; fi
+    if [ -x "$dir/$cmd" ]; then echo "$dir/$cmd"; return 0; fi
+  done <<< "$FALLBACK_DIRS"
+  return 1
+}
+
+# Not every tool answers to --version.
+version_of() {
+  case "$(basename "$1" .exe)" in
+    kubectl) "$1" version --client 2>&1 | head -1 ;;
+    *)       "$1" --version 2>&1 | head -1 ;;
+  esac
+}
+
+have() { resolve "$1" >/dev/null 2>&1; }
 
 check() {
-  local name="$1" cmd="$2" unlocks="$3"
+  local name="$1" cmd="$2" unlocks="$3" path
   printf '  %-16s ' "$name"
-  if have "$cmd"; then
-    printf '%sready%s   %s%s%s\n' "$GREEN" "$OFF" "$DIM" "$($cmd --version 2>&1 | head -1 | cut -c1-46)" "$OFF"
+  if path=$(resolve "$cmd"); then
+    local note=''
+    command -v "$cmd" >/dev/null 2>&1 || note=' (not on PATH - open a new terminal)'
+    printf '%sready%s   %s%s%s%s\n' "$GREEN" "$OFF" "$DIM" \
+      "$(version_of "$path" | cut -c1-40)" "$note" "$OFF"
     ready=$((ready + 1))
   else
     printf '%smissing%s %sblocks: %s%s\n' "$RED" "$OFF" "$DIM" "$unlocks" "$OFF"
@@ -62,10 +102,12 @@ probe "SonarQube" "http://localhost:9000/api/system/status" "docker compose -f d
 echo
 if have docker; then
   echo "Docker daemon"
-  if docker info >/dev/null 2>&1; then
+  DOCKER_BIN=$(resolve docker)
+  if "$DOCKER_BIN" info >/dev/null 2>&1; then
     printf '  %-16s %sreachable%s\n' "daemon" "$GREEN" "$OFF"
   else
-    printf '  %-16s %snot running%s %s(start Docker Desktop)%s\n' "daemon" "$RED" "$OFF" "$DIM" "$OFF"
+    printf '  %-16s %snot running%s %s(start Docker Desktop and accept its licence)%s\n' \
+      "daemon" "$RED" "$OFF" "$DIM" "$OFF"
   fi
   echo
 fi

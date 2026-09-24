@@ -26,21 +26,31 @@ start until this is done.
 wsl --install
 ```
 
-**you** — then Docker Desktop, and the two other missing CLIs:
+**you** — then Docker Desktop, and the two other CLIs. `winget` takes one
+`--id` per invocation, so these are three separate commands:
 
 ```bash
 winget install -e --id Docker.DockerDesktop
 ```
 
 ```bash
-winget install -e --id GitHub.cli --id Kubernetes.kubectl
+winget install -e --id GitHub.cli
 ```
 
-Start Docker Desktop once and let it finish initialising. Verify:
+```bash
+winget install -e --id Kubernetes.kubectl
+```
+
+**you** — start Docker Desktop, accept the license agreement it shows on
+first run, and allow WSL integration when it asks. Verify:
 
 ```bash
 docker run --rm hello-world
 ```
+
+> Newly installed tools are not on the `PATH` of shells that were already
+> open. Start a new terminal after installing, or call the executable by its
+> full path.
 
 > **If WSL2 refuses to install**, virtualisation may be off in the BIOS.
 > Docker Desktop can also run on Hyper-V instead, but WSL2 is the smoother
