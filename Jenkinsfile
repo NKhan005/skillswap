@@ -269,6 +269,14 @@ pipeline {
 
   post {
     always {
+      // Log out before anything else. `docker login` writes credentials into
+      // the agent's ~/.docker/config.json, which on this setup is a persistent
+      // volume - so a rotated or revoked token would otherwise linger and be
+      // offered on later builds. That breaks even anonymous pulls, including
+      // the docker/dockerfile frontend image that `# syntax=` requires, with a
+      // confusing "401 incorrect username or password".
+      sh 'docker logout || true'
+
       // Keep the agent's disk from filling with every tagged build.
       sh """
         docker rmi ${SERVER_IMAGE}:${IMAGE_TAG} ${CLIENT_IMAGE}:${IMAGE_TAG} || true
