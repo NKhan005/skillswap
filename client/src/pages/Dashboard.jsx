@@ -1,12 +1,18 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Coins, ShieldCheck, Repeat, Sparkles, ArrowRight, Inbox } from 'lucide-react';
+import { Sparkles, ArrowRight } from 'lucide-react';
 import { endpoints } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import { useNotifications } from '../context/NotificationContext';
-import { EmptyState, Spinner, StatTile, TrustBadge } from '../components/ui';
+import { EmptyState, Spinner } from '../components/ui';
 import MatchCard from '../components/MatchCard';
-import { IncomingRequests, ChallengeProgress, RecentActivity } from '../components/DashboardPanels';
+import {
+  StatsRow,
+  TrustPanel,
+  IncomingRequests,
+  ChallengeProgress,
+  RecentActivity,
+} from '../components/DashboardPanels';
 import SwapRequestModal from '../components/SwapRequestModal';
 
 /**
@@ -97,37 +103,10 @@ export default function Dashboard() {
         </Link>
       </div>
 
-      {/* Stats */}
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <StatTile
-          icon={Coins}
-          tone="mint"
-          label="Time credits"
-          value={user.wallet?.balance ?? 0}
-          hint={`${user.wallet?.totalEarned ?? 0} earned / ${user.wallet?.totalSpent ?? 0} spent`}
-        />
-        <StatTile
-          icon={ShieldCheck}
-          tone="brand"
-          label="Trust score"
-          value={`${user.trustScore ?? 0}/100`}
-          hint={`${user.trustStats?.totalReviews ?? 0} reviews`}
-        />
-        <StatTile
-          icon={Repeat}
-          tone="sky"
-          label="Completed swaps"
-          value={completed.length}
-          hint={`${active.length} in progress`}
-        />
-        <StatTile
-          icon={Inbox}
-          tone="amber"
-          label="Incoming requests"
-          value={incoming.length}
-          hint={incoming.length ? 'Respond to keep your rate up' : 'All caught up'}
-        />
-      </div>
+      <StatsRow
+        user={user}
+        counts={{ completed: completed.length, active: active.length, incoming: incoming.length }}
+      />
 
       <div className="mt-8 grid gap-6 lg:grid-cols-3">
         {/* Matches */}
@@ -163,39 +142,7 @@ export default function Dashboard() {
         <div className="grid content-start gap-6">
           <IncomingRequests swaps={incoming} />
 
-          {/* Trust breakdown */}
-          <section className="card p-5">
-            <div className="mb-3 flex items-center justify-between">
-              <h2 className="font-semibold text-slate-900">Trust score</h2>
-              <TrustBadge score={user.trustScore ?? 0} size="sm" />
-            </div>
-
-            <div className="grid gap-2.5 text-sm">
-              {[
-                ['Reviews', user.trustStats?.totalReviews ?? 0, `avg ${user.trustStats?.averageRating ?? 0}`],
-                ['Completed swaps', user.trustStats?.completedSwaps ?? 0, ''],
-                [
-                  'Response rate',
-                  `${Math.round((user.trustStats?.responseRate ?? 0) * 100)}%`,
-                  `${user.trustStats?.requestsResponded ?? 0}/${user.trustStats?.requestsReceived ?? 0}`,
-                ],
-              ].map(([label, value, hint]) => (
-                <div key={label} className="flex items-center justify-between">
-                  <span className="text-slate-600">{label}</span>
-                  <span className="font-medium text-slate-900">
-                    {value} {hint && <span className="text-xs font-normal text-slate-400">{hint}</span>}
-                  </span>
-                </div>
-              ))}
-            </div>
-
-            <div className="mt-4 h-2 overflow-hidden rounded-full bg-slate-100">
-              <div
-                className="h-full rounded-full bg-brand-500 transition-all"
-                style={{ width: `${user.trustScore ?? 0}%` }}
-              />
-            </div>
-          </section>
+          <TrustPanel user={user} />
 
           <ChallengeProgress challenges={joinedChallenges} />
 
